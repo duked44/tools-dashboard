@@ -18,7 +18,7 @@ defaults:
   colorTheme: dark
 
 stylesheet:
-  - "custom.css"
+  - "assets/custom.css"
 
 colors:
   light:
