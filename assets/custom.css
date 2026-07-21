@@ -16,3 +16,36 @@ body,
 .title.is-4 {
   letter-spacing: -0.01em;
 }
+
+/* Kill Homer's stock colored banner — flatten header into the page background
+   instead of a solid highlight-primary/secondary block. */
+#bighead .first-line,
+#bighead .navbar {
+  background-color: var(--background) !important;
+}
+
+#bighead {
+  color: var(--text-header);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#bighead .first-line {
+  min-height: 64px;
+}
+
+#bighead .first-line .container {
+  min-height: 48px;
+  padding: 12px 0;
+}
+
+#bighead .first-line h1 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+#bighead .first-line .headline {
+  margin-top: 0;
+  font-size: 0.85rem;
+  color: var(--text-subtitle);
+}

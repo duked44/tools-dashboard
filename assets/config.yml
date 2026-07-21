@@ -7,7 +7,7 @@
 title: "Tools"
 subtitle: "Curated. Verified. No bullshit."
 logo: false
-icon: "fas fa-toolbox"
+icon: false
 
 header: true
 footer: false
@@ -22,9 +22,9 @@ stylesheet:
 
 colors:
   light:
-    highlight-primary: "#6366f1"
-    highlight-secondary: "#818cf8"
-    highlight-hover: "#4f46e5"
+    highlight-primary: "#0d9488"
+    highlight-secondary: "#0f766e"
+    highlight-hover: "#115e59"
     background: "#f7f7f8"
     card-background: "#ffffff"
     text: "#27272a"
@@ -32,20 +32,20 @@ colors:
     text-title: "#18181b"
     text-subtitle: "#71717a"
     card-shadow: rgba(0, 0, 0, 0.06)
-    link: "#4f46e5"
+    link: "#0f766e"
     link-hover: "#18181b"
   dark:
-    highlight-primary: "#818cf8"
-    highlight-secondary: "#a5b4fc"
-    highlight-hover: "#6366f1"
+    highlight-primary: "#2dd4bf"
+    highlight-secondary: "#5eead4"
+    highlight-hover: "#14b8a6"
     background: "#0a0a0c"
-    card-background: "#18181b"
+    card-background: "#141416"
     text: "#e4e4e7"
     text-header: "#fafafa"
     text-title: "#f4f4f5"
     text-subtitle: "#9ca3af"
     card-shadow: rgba(0, 0, 0, 0.4)
-    link: "#a5b4fc"
+    link: "#5eead4"
     link-hover: "#e4e4e7"
 
 # Pings each item's URL and flags it visually if unreachable.
