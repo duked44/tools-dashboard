@@ -11,8 +11,18 @@
     <link rel="modulepreload" crossorigin href="./resources/_plugin-vue_export-helper-LledoY8b.js">
     <link rel="modulepreload" crossorigin href="./resources/service-AWe6Zi3q.js">
     <link rel="stylesheet" crossorigin href="./resources/index-yln0bw4y.css">
-  <link rel="manifest" href="./assets/manifest.json" crossorigin="use-credentials"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+  <link rel="manifest" href="./assets/manifest.json" crossorigin="use-credentials"></head>
   <body>
     <div id="app-mount"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (const reg of regs) reg.unregister();
+        });
+        if (window.caches) {
+          caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
+        }
+      }
+    </script>
   </body>
 </html>
