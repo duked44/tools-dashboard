@@ -15,7 +15,38 @@ footer: false
 theme: default
 defaults:
   layout: columns
-  colorTheme: auto
+  colorTheme: dark
+
+stylesheet:
+  - "custom.css"
+
+colors:
+  light:
+    highlight-primary: "#6366f1"
+    highlight-secondary: "#818cf8"
+    highlight-hover: "#4f46e5"
+    background: "#f7f7f8"
+    card-background: "#ffffff"
+    text: "#27272a"
+    text-header: "#18181b"
+    text-title: "#18181b"
+    text-subtitle: "#71717a"
+    card-shadow: rgba(0, 0, 0, 0.06)
+    link: "#4f46e5"
+    link-hover: "#18181b"
+  dark:
+    highlight-primary: "#818cf8"
+    highlight-secondary: "#a5b4fc"
+    highlight-hover: "#6366f1"
+    background: "#0a0a0c"
+    card-background: "#18181b"
+    text: "#e4e4e7"
+    text-header: "#fafafa"
+    text-title: "#f4f4f5"
+    text-subtitle: "#9ca3af"
+    card-shadow: rgba(0, 0, 0, 0.4)
+    link: "#a5b4fc"
+    link-hover: "#e4e4e7"
 
 # Pings each item's URL and flags it visually if unreachable.
 # Catches dead links; doesn't catch a tool going behind a login wall.
