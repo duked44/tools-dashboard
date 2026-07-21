@@ -1,0 +1,47 @@
+---
+# Personal tools dashboard.
+# Every tool listed here has been personally used and verified:
+# no ads, no tracking, no login wall, no paywall. If it stops meeting
+# that bar, it gets removed rather than caveated.
+
+title: "Tools"
+subtitle: "Curated. Verified. No bullshit."
+logo: false
+icon: "fas fa-toolbox"
+
+header: true
+footer: false
+
+theme: default
+defaults:
+  layout: columns
+  colorTheme: auto
+
+# Pings each item's URL and flags it visually if unreachable.
+# Catches dead links; doesn't catch a tool going behind a login wall.
+connectivityCheck: true
+
+links: []
+
+services:
+  - name: "OSINT"
+    icon: "fas fa-magnifying-glass"
+    items:
+      - name: "Placeholder — replace me"
+        icon: "fas fa-flag"
+        subtitle: "This is a stub. Swap in a real, personally-verified OSINT tool here."
+        tag: "placeholder"
+        tagstyle: "is-warning"
+        keywords: "placeholder stub todo"
+        url: "https://github.com/duked44/tools-dashboard"
+
+  - name: "Design"
+    icon: "fas fa-palette"
+    items:
+      - name: "Placeholder — replace me"
+        icon: "fas fa-flag"
+        subtitle: "This is a stub. Swap in a real, personally-verified design tool here."
+        tag: "placeholder"
+        tagstyle: "is-warning"
+        keywords: "placeholder stub todo"
+        url: "https://github.com/duked44/tools-dashboard"
