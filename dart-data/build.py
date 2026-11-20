@@ -158,4 +158,7 @@ sched = {"version": feed_version, "tz": "America/Chicago",
 os.makedirs(out, exist_ok=True)
 json.dump(rail, open(os.path.join(out, "rail.json"), "w"), separators=(",", ":"))
 json.dump(sched, open(os.path.join(out, "sched.json"), "w"), separators=(",", ":"))
+# script versions so the page can load them directly
+open(os.path.join(out, "rail.js"), "w").write("window.DART_RAIL=" + json.dumps(rail, separators=(",", ":")) + ";")
+open(os.path.join(out, "sched.js"), "w").write("window.DART_SCHED=" + json.dumps(sched, separators=(",", ":")) + ";")
 print(f"version {feed_version}: {len(out_shapes)} shapes, {len(trip_rows)} rail trips, {len(sched['services'])} services")

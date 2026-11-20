@@ -26,5 +26,5 @@ jobs:
         run: |
           git config user.name "dart-timetable-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add dart-data/rail.json dart-data/sched.json
+          git add dart-data/rail.json dart-data/sched.json dart-data/rail.js dart-data/sched.js
           if git diff --cached --quiet; then echo "No changes"; else git commit -m "Update DART timetable data" && git pull --rebase && git push; fi
