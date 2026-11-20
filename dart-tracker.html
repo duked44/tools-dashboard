@@ -76,6 +76,7 @@ body.focus #mini,body.focus #miniHint{display:flex}
 body.focus #miniHint{display:block}
 body.focus.peek #top,body.focus.peek #card{opacity:1;pointer-events:auto;transform:none}
 body.focus.peek #mini{display:none}
+body.aim #top,body.aim #card,body.aim #recenter{display:none!important}
 /* recenter pill */
 #recenter{position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:none;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
 /* sheet */
@@ -153,6 +154,11 @@ ol.p{padding-left:18px}
 <div id="miniHint">Tap anywhere for controls</div>
 <button id="recenter" class="glass">Back to my window</button>
 <div id="hint" class="glass"></div>
+<div id="aimBar" class="glass" style="display:none;position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:12;border-radius:24px;padding:16px 18px;max-width:520px;margin:0 auto">
+  <div class="eyebrow" style="margin-bottom:4px">Window direction</div>
+  <div style="font-size:15px;margin-bottom:12px">Drag your finger toward what you see out your window. <b id="aimDeg"></b></div>
+  <div class="row2"><button class="btn pri" id="aimDone" style="flex:1">Done</button><button class="btn" id="aimCancel">Cancel</button></div>
+</div>
 <div id="toast" class="glass"></div>
 
 <div id="scrim"></div>
@@ -172,8 +178,8 @@ ol.p{padding-left:18px}
 
   <div class="sec">
     <span class="eyebrow">Window faces <b id="hdgTxt" style="letter-spacing:0;text-transform:none;color:var(--ink)"></b></span>
-    <div class="row2"><button class="btn" id="bAim">Tap something I can see</button><button class="btn" id="bCompass">Point phone out window</button></div>
-    <input type="range" id="hdg" min="0" max="359" step="1" value="0" aria-label="Window direction in degrees" style="margin-top:12px">
+    <div class="row2"><button class="btn pri" id="bAim">Set window direction</button></div>
+    <p class="p">The map turns flat, north up. Drag your finger from your building toward what you see out the window, then tap Done. You only do this once.</p>
     <label class="f">View width <b id="fovTxt"></b></label>
     <input type="range" id="fov" min="20" max="180" step="5">
     <label class="f">How far you can see <b id="rngTxt"></b></label>
@@ -408,7 +414,7 @@ function homeCamera(){
   const H=window.innerHeight,top=focus?(focusTop()):($("top").getBoundingClientRect().bottom+10),bottom=focus?40:($("card").offsetHeight+34);
   const avail=Math.max(160,H-top-bottom);
   const lat=S.pin[0],k=156543.03*Math.cos(lat*Math.PI/180);
-  let pxPerM=(0.5*avail)/dist;let z=Math.log2(pxPerM*k);z=Math.max(14.5,Math.min(18,z));pxPerM=Math.pow(2,z)/k;
+  let pxPerM=(0.3*avail)/Math.max(dist,260);let z=Math.log2(pxPerM*k);z=Math.max(14,Math.min(17,z));pxPerM=Math.pow(2,z)/k;
   const yPin=top+0.84*avail,fwd=(yPin-H/2)/pxPerM,h=S.hdg||0;
   const c=toLL(ux+fwd*Math.sin(h/R2D),uy+fwd*Math.cos(h/R2D));
   return{center:[c[1],c[0]],zoom:z,bearing:h,padding:{top:0,bottom:0,left:0,right:0}};
@@ -643,9 +649,33 @@ let peekT=null;
 document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&document.body.classList.contains("focus")&&canFS){}});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();if($("bWake").classList.contains("on")&&!wake)wakeOn()}});
 
+
+/* ============ window direction: drag to aim ============ */
+function coneOnly(h){if(!S.pin||!map.getSource("cone"))return;const[ux,uy]=toXY(S.pin[0],S.pin[1]);const half=S.fov/2,R=S.rng;
+  const ring=[[S.pin[1],S.pin[0]]];for(let a=-half;a<=half+.01;a+=Math.max(2,half/24)){const r=(h+a)/R2D;const p=toLL(ux+R*Math.sin(r),uy+R*Math.cos(r));ring.push([p[1],p[0]])}ring.push([S.pin[1],S.pin[0]]);
+  map.getSource("cone").setData({type:"FeatureCollection",features:[{type:"Feature",properties:{k:"fill"},geometry:{type:"Polygon",coordinates:[ring]}},{type:"Feature",properties:{k:"edge"},geometry:{type:"LineString",coordinates:[ring[1],ring[0],ring[ring.length-2]]}}]});
+  if(pinMk)pinMk.setRotation(h)}
+let aimH=null,aiming=false;
+function aimAt(pt){const ll=map.unproject(pt);const a=toXY(S.pin[0],S.pin[1]),b=toXY(ll.lat,ll.lng);if(Math.hypot(b[0]-a[0],b[1]-a[1])<3)return;
+  aimH=Math.round(brg(a[0],a[1],b[0],b[1]));coneOnly(aimH);$("aimDeg").textContent="Facing "+DIRS[Math.round(aimH/45)%8]+" ("+aimH+"°)"}
+function startAim(){if(!S.pin){toast("Set your spot first");return}
+  closeSheet();aiming=true;aimH=S.hdg;document.body.classList.add("aim");$("aimBar").style.display="block";$("aimDeg").textContent=S.hdg==null?"":"Facing "+DIRS[Math.round(S.hdg/45)%8];
+  map.dragPan.disable();map.dragRotate.disable();map.touchZoomRotate.disableRotation();
+  programmatic=true;map.jumpTo({center:[S.pin[1],S.pin[0]],zoom:16.3,bearing:0,padding:{top:0,bottom:180,left:0,right:0}});setTimeout(()=>programmatic=false,100);
+  if(S.hdg!=null)coneOnly(S.hdg)}
+function endAim(save){aiming=false;document.body.classList.remove("aim");$("aimBar").style.display="none";map.dragPan.enable();map.dragRotate.enable();map.touchZoomRotate.enableRotation();map.setPadding({top:0,bottom:0,left:0,right:0});
+  if(save&&aimH!=null){S.hdg=aimH;store.set("hdg",S.hdg);toast("Saved. Your view now faces "+DIRS[Math.round(aimH/45)%8]+".")}
+  afterSpot()}
+const mapEl=document.getElementById("map");
+mapEl.addEventListener("pointerdown",e=>{if(!aiming)return;mapEl.setPointerCapture?.(e.pointerId);const r=mapEl.getBoundingClientRect();aimAt([e.clientX-r.left,e.clientY-r.top]);mapEl._aimDown=true});
+mapEl.addEventListener("pointermove",e=>{if(!aiming||!mapEl._aimDown)return;const r=mapEl.getBoundingClientRect();aimAt([e.clientX-r.left,e.clientY-r.top])});
+addEventListener("pointerup",()=>{mapEl._aimDown=false});
+$("aimDone").onclick=()=>endAim(true);$("aimCancel").onclick=()=>endAim(false);
+
 /* ============ map taps ============ */
 let clickMode=null;
 map.on("click",e=>{
+  if(aiming)return;
   if(clickMode==="pin"){S.pin=[e.lngLat.lat,e.lngLat.lng];store.set("pin",S.pin);clickMode=null;setHint("");afterSpot();toast("Spot saved. Now set which way your window faces.");openSheet();return}
   if(clickMode==="aim"){const a=toXY(S.pin[0],S.pin[1]),b=toXY(e.lngLat.lat,e.lngLat.lng);clickMode=null;setHint("");setHdg(Math.round(brg(a[0],a[1],b[0],b[1])));openSheet();return}
   if(document.body.classList.contains("focus")){document.body.classList.toggle("peek");clearTimeout(peekT);if(document.body.classList.contains("peek"))peekT=setTimeout(()=>document.body.classList.remove("peek"),6000);placeRecenter()}
@@ -656,7 +686,7 @@ function openSheet(){$("sheet").classList.add("open");$("scrim").style.display="
 function closeSheet(){$("sheet").classList.remove("open");$("scrim").style.display="none"}
 $("bSet").onclick=openSheet;$("bClose").onclick=closeSheet;$("scrim").onclick=closeSheet;
 function afterSpot(){computeNear();drawPin();updLabels();goHome()}
-function setHdg(h){S.hdg=h==null?null:((h%360)+360)%360;store.set("hdg",S.hdg);$("hdg").value=S.hdg??0;afterSpot()}
+function setHdg(h){S.hdg=h==null?null:((h%360)+360)%360;store.set("hdg",S.hdg);afterSpot()}
 if($("bGPS"))$("bGPS").onclick=()=>{if(!navigator.geolocation)return toast("Location isn't available");toast("Finding you…");
   navigator.geolocation.getCurrentPosition(p=>{S.pin=[p.coords.latitude,p.coords.longitude];store.set("pin",S.pin);afterSpot();toast("Spot saved (accurate to about "+Math.round(p.coords.accuracy*3.281)+" ft). You can fine-tune it with Tap the map.",4500)},
   e=>{if(e.code===1){openSheet();toast("Location is blocked. In iPhone Settings → Privacy & Security → Location Services → Brave, choose While Using the App, then reload. Or type your address below.",9000)}else toast("Couldn't get your location ("+e.message+"). Try again, or type your address.",5000)},{enableHighAccuracy:true,timeout:20000,maximumAge:0})};
@@ -670,17 +700,9 @@ async function findAddr(){const q=$("addr").value.trim();if(!q)return;$("addrRes
   catch(e){$("addrRes").innerHTML='<p class="p">Address search isn\'t reachable right now. Use Tap the map instead.</p>'}}
 $("bAddr").onclick=findAddr;$("addr").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();findAddr()}});
 $("bTapPin").onclick=()=>{closeSheet();clickMode="pin";setHint("Tap exactly where your window is")};
-$("bAim").onclick=()=>{if(!S.pin)return toast("Set your spot first");closeSheet();clickMode="aim";setHint("Tap something you can see out the window")};
+$("bAim").onclick=startAim;
 const DIRS=["N","NE","E","SE","S","SW","W","NW"];
-$("hdg").oninput=e=>{S.hdg=+e.target.value;store.set("hdg",S.hdg);updLabels();drawPin();if(view==="home")map.jumpTo({bearing:S.hdg})};
-$("hdg").onchange=()=>afterSpot();
-let compOn=false,compH=null;
-function onOri(e){let h=e.webkitCompassHeading;if(h==null&&e.absolute&&e.alpha!=null)h=360-e.alpha;if(h==null)return;compH=h;$("bCompass").textContent="Tap to lock: "+Math.round(h)+"°"}
-$("bCompass").onclick=async()=>{
-  if(compOn){removeEventListener("deviceorientation",onOri);removeEventListener("deviceorientationabsolute",onOri);compOn=false;$("bCompass").classList.remove("on");$("bCompass").textContent="Point phone out window";if(compH!=null){setHdg(Math.round(compH));toast("Window faces "+Math.round(compH)+"°")}return}
-  try{if(typeof DeviceOrientationEvent!=="undefined"&&DeviceOrientationEvent.requestPermission){if(await DeviceOrientationEvent.requestPermission()!=="granted")return toast("Compass permission denied")}}catch(e){return toast("Compass isn't available")}
-  compOn=true;compH=null;$("bCompass").classList.add("on");$("bCompass").textContent="Hold flat, top toward window…";addEventListener("deviceorientation",onOri);addEventListener("deviceorientationabsolute",onOri);
-  toast("Hold the phone flat with its top edge pointing out the window, then tap the button again.",5000)};
+let compOn=false;
 function updLabels(){
   $("spotTxt").textContent=S.pin?"Saved: "+S.pin[0].toFixed(5)+", "+S.pin[1].toFixed(5):"Not set yet.";
   $("hdgTxt").textContent=S.hdg==null?"· not set":"· "+Math.round(S.hdg)+"° "+DIRS[Math.round(S.hdg/45)%8];
@@ -730,7 +752,7 @@ $("bCopyW").onclick=async()=>{try{await navigator.clipboard.writeText(WORKER);to
 addEventListener("resize",()=>{if(view==="home")setTimeout(()=>goHome(false),150);placeRecenter()});
 
 /* ============ init ============ */
-$("fUrl").value=S.url;$("fKey").value=S.key;$("fKeyMode").value=S.keyMode;$("fProxy").value=S.proxy;$("fRef").value=S.ref;$("hdg").value=S.hdg??0;$("fov").value=S.fov;$("rng").value=S.rng;$("alertSec").value=S.alertSec;$("dv").textContent=DATA.version;
+$("fUrl").value=S.url;$("fKey").value=S.key;$("fKeyMode").value=S.keyMode;$("fProxy").value=S.proxy;$("fRef").value=S.ref;$("fov").value=S.fov;$("rng").value=S.rng;$("alertSec").value=S.alertSec;$("dv").textContent=DATA.version;
 segs();updLabels();computeNear();drawPin();restartLoop();
 if(!S.pin)setTimeout(openSheet,500);
 window.__dwt={S,TRK,WATCH:()=>WATCH,map,render,goHome};
