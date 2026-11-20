@@ -83,6 +83,18 @@ body.aim #top,body.aim #card,body.aim #recenter{display:none!important}
 #turnL{left:14px}#turnR{right:14px}
 body.aim .turn{display:flex}
 .turn:active{background:var(--ink);color:var(--ground)}
+#bSeen{position:fixed;right:16px;z-index:6;display:none;align-items:center;gap:7px;height:44px;padding:0 14px 0 12px;border-radius:22px;color:var(--ink);font:500 13px Inter,system-ui,sans-serif;cursor:pointer}
+#bSeen svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#bSeen.show{display:flex}
+body.focus:not(.peek) #bSeen{bottom:calc(env(safe-area-inset-bottom) + 18px)!important;right:16px;width:44px;padding:0;justify-content:center}
+body.focus:not(.peek) #bSeen span{display:none}
+body.aim #bSeen{display:none!important}
+#dirArrow{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 66px);width:120px;height:14px;z-index:4;pointer-events:none;display:none}
+#dirArrow svg{width:100%;height:100%;display:block}
+#dirArrow.l svg{transform:scaleX(-1)}
+#dirArrow.r path{stroke:#D63B2F}#dirArrow.l path{stroke:#2563C9}
+body.focus:not(.peek) #dirArrow{top:calc(env(safe-area-inset-top) + 30px);left:auto;right:18px;transform:none;width:96px}
+body.aim #dirArrow{display:none!important}
 /* recenter pill */
 #recenter{position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:none;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
 /* sheet */
@@ -154,13 +166,15 @@ ol.p{padding-left:18px}
     <div id="who"><span id="whoLine"><span class="dot" id="whoDot" style="background:#9a958b"></span><span id="whoName">Set your spot</span></span><span id="whoSub">Open settings to begin</span></div>
   </div>
   <div id="bar"><div id="barFill"></div></div>
-  <div id="seenRow" style="display:none;align-items:center;gap:10px"><button class="btn" id="bSeen" style="flex:1">It's passing my window now</button><span id="calTxt" style="font-size:12px;color:var(--mut);max-width:45%"></span></div>
+
   <div id="more"></div>
 </div>
 
 <div id="mini"><span id="miniCount" class="serif">–:––</span><span id="miniWho"><span class="dot" id="miniDot" style="width:8px;height:8px"></span><span id="miniName"></span></span></div>
 <button id="recenter" class="glass">Back to my window</button>
 <div id="hint" class="glass"></div>
+<button id="bSeen" class="glass" aria-label="A train is passing my window now"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Passing now</span></button>
+<div id="dirArrow" aria-hidden="true"><svg viewBox="0 0 120 14"><path d="M4 7H114M104 1.5L115 7L104 12.5" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
 <button id="turnL" class="glass turn" aria-label="Turn left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L4 9l5 5"/><path d="M4 9h9a7 7 0 0 1 0 14h-2"/></svg></button>
 <button id="turnR" class="glass turn" aria-label="Turn right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4l5 5-5 5"/><path d="M20 9h-9a7 7 0 0 0 0 14h2"/></svg></button>
 <div id="aimBar" class="glass" style="display:none;position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:12;border-radius:24px;padding:16px 18px;max-width:520px;margin:0 auto">
@@ -372,11 +386,11 @@ function computeNear(){
   const grid=new Map(),fs=[],mids=[];
   for(const s of DATA.shapes){
     const bb=s.bb;if(ux<bb[0]-Rv||ux>bb[2]+Rv||uy<bb[1]-Rv||uy>bb[3]+Rv)continue;
-    let bestIn=null,bestAny=null;
+    let bestIn=null,bestAny=null;const inSegs=new Set();
     for(let d=0;d<s.len;d+=20){
       const a=pointAt(s,d),b=pointAt(s,Math.min(s.len,d+20));const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;const r=Math.hypot(mx-ux,my-uy);
       if(r<=R){const inView=S.hdg==null||angDiff(brg(ux,uy,mx,my),S.hdg)<=half||r<15;
-        if(inView&&(!bestIn||r<bestIn.r))bestIn={d:d+10,r,x:mx,y:my};if(!bestAny||r<bestAny.r)bestAny={d:d+10,r,x:mx,y:my}}
+        if(inView)inSegs.add(d);if(inView&&(!bestIn||r<bestIn.r))bestIn={d:d+10,r,x:mx,y:my};if(!bestAny||r<bestAny.r)bestAny={d:d+10,r,x:mx,y:my}}
       if(r>Rv)continue;
       const ang=tangentAt(s,d+10)%180;const cx=Math.floor(mx/8),cy=Math.floor(my/8);let dup=false;
       for(let i=-1;i<=1&&!dup;i++)for(let j=-1;j<=1&&!dup;j++){const L=grid.get((cx+i)+","+(cy+j));if(L)for(const q of L){if(Math.hypot(q[0]-mx,q[1]-my)<3.2&&angDiff(q[2],ang)%180<20){dup=true;break}}}
@@ -385,7 +399,7 @@ function computeNear(){
       const A=toLL(a[0],a[1]),B=toLL(b[0],b[1]);
       fs.push({type:"Feature",properties:{f:+f.toFixed(3)},geometry:{type:"LineString",coordinates:[[A[1],A[0]],[B[1],B[0]]]}});
     }
-    const w=bestIn||bestAny;if(w)WATCH[s.id]={...w,inView:!!bestIn};
+    const w=bestIn||bestAny;if(w){let din=w.d-10,dout=w.d-10;if(bestIn){while(inSegs.has(din-20))din-=20;while(inSegs.has(dout+20))dout+=20;dout+=20}else{din=w.d-60;dout=w.d+60}WATCH[s.id]={...w,inView:!!bestIn,din,dout}}
   }
   for(const w of Object.values(WATCH)){let b=null,bd=1e9;for(const m of mids){const d=Math.hypot(m[0]-w.x,m[1]-w.y);if(d<bd){bd=d;b=m}}if(b&&bd<25){w.mx=b[0];w.my=b[1]}else{w.mx=w.x;w.my=w.y}}
   NEAR={ux,uy,R:Rv};
@@ -461,7 +475,7 @@ const KINDS={
     return bi(0,1)+`<rect class="lf" x="58" y="-1" width="3" height="2"/>`+bi(61,0)+`<rect class="lf" x="119" y="-1" width="3" height="2"/><g transform="translate(122,0)"><path d="M0,-7H30C34,-7 36,-4 36,0C36,4 34,7 30,7H0Z" fill="#2B3550" stroke="#1B2238" stroke-width=".7"/><circle cx="8" r="3.4" fill="none" stroke="#9AA3B8" stroke-width=".8"/><circle cx="16" r="3.4" fill="none" stroke="#9AA3B8" stroke-width=".8"/><rect x="22" y="-3" width="6" height="6" fill="#3E4966"/><path d="M33,-4.6C34.6,-2.6 34.6,2.6 33,4.6" fill="none" stroke="#11151F" stroke-width="2"/></g>`}},
   street:{units:68,meters:25,body:()=>carSVG(0,24,1,0,[[9,10]])+J(24)+carSVG(27,14,0,0,[])+J(41)+carSVG(44,24,0,1,[[5,10]])}
 };
-const TRAIN_SCALE=2.6;
+const TRAIN_SCALE=1, TRAIN_WIDEN=2.4; // true length so timing matches; wider so it's easy to see
 const kindOf=s=>s.route==="SILVER"?"flirt":s.route==="TRE"?"tre":(s.route==="620"||s.route==="425")?"street":"lrv";
 function trainEl(s){
   const k=KINDS[kindOf(s)],col=colOf(s);
@@ -517,7 +531,7 @@ function predict(rec){const s=SH[rec.shape],w=WATCH[rec.shape];if(!s||!w)return 
 
 
 /* ============ schedule engine (DART's published timetable) ============ */
-const PA=0.22,PK=1/(2*PA*(1-PA));
+const PA=0.3,PK=1/(2*PA*(1-PA));
 const ez=u=>u<=0?0:u>=1?1:u<PA?u*u*PK:u<1-PA?(u-PA/2)/(1-PA):1-(1-u)*(1-u)*PK; // accelerate, cruise, brake
 function ezInv(f){let lo=0,hi=1;for(let i=0;i<28;i++){const m=(lo+hi)/2;if(ez(m)<f)lo=m;else hi=m}return(lo+hi)/2}
 function tripPos(t,e){const ds=t[3],A=t[4],D=t[5],n=ds.length;
@@ -536,16 +550,21 @@ function prevDay(ymd,wd){const dt=new Date(Date.UTC(Math.floor(ymd/10000),Math.f
 function activeServices(ymd,wd){const set=new Set();for(const[s,v]of Object.entries(SCHED.services)){const[days,a,b]=v;if(ymd>=a&&ymd<=b&&days[wd])set.add(s)}
   const ex=SCHED.exceptions[String(ymd)]||{};for(const[s,t]of Object.entries(ex)){if(t===1)set.add(s);else if(t===2)set.delete(s)}return set}
 let UPS=[],schedInfo="";
-function schedDays(){const c=chicagoNow(),y=prevDay(c.ymd,c.wd);return[{ymd:c.ymd,mid:c.mid,svc:activeServices(c.ymd,c.wd)},{ymd:y.ymd,mid:c.mid-86400,svc:activeServices(y.ymd,y.wd)}]}
+const dayCache={};
+function tripsFor(ymd,wd){if(!dayCache[ymd]){const svc=activeServices(ymd,wd);const L=[];SCHED.trips.forEach((t,i)=>{if(svc.has(t[1])&&SH[t[0]])L.push(i)});dayCache[ymd]=L;for(const k of Object.keys(dayCache))if(Math.abs(+k-ymd)>2)delete dayCache[k]}return dayCache[ymd]}
+let chiCache={at:0};
+function schedDays(){const nowMs=Date.now();if(nowMs-chiCache.at>60000||!chiCache.c){chiCache={at:nowMs,c:chicagoNow()}}
+  const c=chiCache.c,mid=c.mid,y=prevDay(c.ymd,c.wd);return[{ymd:c.ymd,mid,list:tripsFor(c.ymd,c.wd)},{ymd:y.ymd,mid:mid-86400,list:tripsFor(y.ymd,y.wd)}]}
 function schedTick(){
   if(!SCHED){setStatus("err","No timetable");return}
   const now=Date.now()/1000,days=schedDays();const live=new Set();UPS=[];let running=0;
-  for(const day of days){if(!day.svc.size)continue;
-    SCHED.trips.forEach((t,i)=>{if(!day.svc.has(t[1]))return;const s=SH[t[0]];if(!s)return;const t0=day.mid+t[2],e=now-t0,dur=t[4][t[4].length-1];
+  for(const day of days){
+    day.list.forEach(i=>{const t=SCHED.trips[i];const s=SH[t[0]];const t0=day.mid+t[2],e=now-t0,dur=t[4][t[4].length-1];
       if(e>=-30&&e<=dur+20){const id=day.ymd+"|"+i;const p=tripPos(t,Math.max(0,e));running++;live.add(id);
         const rec=TRK[id]||{hist:[]};Object.assign(rec,{id,shape:t[0],trip:t,t0,d:p.d,ts:now,seen:now,stopped:p.stop,sched:true,started:e>=0});if(rec.disp==null)rec.disp=p.d;TRK[id]=rec}
       const w=WATCH[t[0]];if(!w)return;const tt=tripTimeAt(t,w.d);if(tt==null)return;const at=t0+tt;
-      if(at>now-20&&at<now+4*3600)UPS.push({id:day.ymd+"|"+i,shape:t[0],at,t0,trip:t,w})})}
+      if(at>now-120&&at<now+4*3600){const ti=tripTimeAt(t,Math.max(t[3][0],w.din)),to=tripTimeAt(t,Math.min(t[3][t[3].length-1],w.dout));const L=KINDS[kindOf(s)].meters;
+        UPS.push({id:day.ymd+"|"+i,shape:t[0],at,t0,trip:t,w,tIn:t0+(ti==null?tt-15:ti),tOut:t0+(to==null?tt+15:to)+L/10})}})}
   for(const k of Object.keys(TRK))if(!live.has(k)){removeTrain(k);delete TRK[k]}
   UPS.sort((a,b)=>a.at-b.at);
   schedInfo=running+" trains running now (timetable "+(SCHED.version||"")+")";
@@ -590,7 +609,8 @@ function frame(t){
   const z=map.getZoom(),lat=S.pin?S.pin[0]:32.8,pxPerM=Math.pow(2,z)/(78271.517*Math.cos(lat*Math.PI/180));
   for(const r of Object.values(TRK)){
     const s=SH[r.shape];if(!s)continue;
-    if(r.sched){const p=tripPos(r.trip,Math.max(0,now-r.t0-calOffset(s)));r.disp=p.d;r.d=p.d;r.stopped=p.stop}else{
+    if(r.sched){const p=tripPos(r.trip,Math.max(0,now-r.t0-calOffset(s)));r.disp=p.d;r.d=p.d;r.stopped=p.stop;
+      if(r.vis==null||Math.abs(p.d-r.vis)>400)r.vis=p.d;else r.vis+=(p.d-r.vis)*Math.min(1,dt*6)}else{
     // where the train should be now: last fix + estimated speed since then
     let v=r.stopped?0:(r.mspd&&r.mspd>1?r.mspd:schedSpeed(s,r.d));
     const nextStop=s.prof.find(p=>p[0]>r.d+5);const cap=nextStop?nextStop[0]:s.len;
@@ -598,7 +618,7 @@ function frame(t){
     if(r.disp==null)r.disp=target;
     const gap=target-r.disp;
     if(gap<-60||gap>500)r.disp=target;else if(gap>0)r.disp+=gap*Math.min(1,dt*2.2);}
-    const k=KINDS[kindOf(s)];const half=k.meters/2;const dc=Math.max(0,r.disp-half);
+    const k=KINDS[kindOf(s)];const half=k.meters/2;const dc=Math.max(0,(r.sched?r.vis:r.disp)-half);
     const c=pointAt(s,dc),ll=toLL(c[0],c[1]),rot=tangentAt(s,dc,k.meters/2)-90;
     let m=MK[r.id];
     if(!m){const el=trainEl(s);m=new maplibregl.Marker({element:el,rotationAlignment:"map",pitchAlignment:"map"}).setLngLat([ll[1],ll[0]]).addTo(map);m._shape=s.id;MK[r.id]=m}
@@ -606,7 +626,7 @@ function frame(t){
     m.setLngLat([ll[1],ll[0]]);m.setRotation(rot);
     const el=m.getElement(),Lpx=k.meters*pxPerM*TRAIN_SCALE,small=Lpx<26;
     if(el._small!==small){el._small=small;el.querySelector("svg").style.display=small?"none":"block";el.querySelector(".tdot").style.display=small?"block":"none"}
-    if(!small){const w=Lpx*(k.units+8)/k.units,h=w*20/(k.units+8)*1.45;el.style.width=w+"px";el.style.height=h+"px"}else{el.style.width="12px";el.style.height="12px"}
+    if(!small){const w=Lpx*(k.units+8)/k.units,h=w*20/(k.units+8)*1.45*TRAIN_WIDEN;el.style.width=w+"px";el.style.height=h+"px"}else{el.style.width="12px";el.style.height="12px"}
     let op=1;if(view==="home"&&NEAR){const rr=Math.hypot(c[0]-NEAR.ux,c[1]-NEAR.uy);const t=Math.min(1,Math.max(0,(NEAR.R-rr)/(NEAR.R*0.25)));op=t*t*(3-2*t)}
     if(el._op!==op){el._op=op;el.style.opacity=op}
   }
@@ -638,14 +658,15 @@ function render(){
   if(!S.pin){setCount("–:––","");setWho("Search your address","Open settings to begin");$("more").innerHTML="";$("age").textContent="";return}
   if(!Object.keys(WATCH).length){setCount("–:––","");setWho("No track in view","Widen your view in settings");$("more").innerHTML="";return}
   const ups=[];
-  if(S.mode==="sched"){for(const u of UPS){const off=calOffset(SH[u.shape]),rawAt=u.at,at=u.at+off;const rem=at-now;if(rem<-20)continue;const r=TRK[u.id];const started=r&&r.started;
+  let showSeen=false;
+  if(S.mode==="sched"){for(const u of UPS){const off=calOffset(SH[u.shape]),rawAt=u.at,at=u.at+off;const rem=at-now;if(now>=u.tIn+off-50&&now<=u.tOut+off+10)showSeen=true;if(rem<-20)continue;const r=TRK[u.id];const started=r&&r.started;
       ups.push({r:r||{id:u.id,shape:u.shape,ts:now,stopped:false},p:{at,dist:started?u.w.d-r.disp:null,w:u.w,startAt:u.t0,trip:u.trip},rem,rawAt})}}
   else for(const r of Object.values(TRK)){const p=predict(r);if(!p||p.passed)continue;const rem=p.at-now;if(rem<-20)continue;ups.push({r,p,rem})}
   ups.sort((a,b)=>a.rem-b.rem);lastUps=ups.filter(x=>x.rawAt);
-  $("seenRow").style.display=S.mode==="sched"&&ups.some(x=>x.rawAt&&Math.abs(x.rem)<180)?"flex":"none";
-  {const n=Object.values(CAL).reduce((a,c)=>a+(c.n||0),0);$("calTxt").textContent=n?("Tuned from "+n+" sighting"+(n>1?"s":"")):"Tap when you see it to tune timing"}
+  const sb=$("bSeen");sb.classList.toggle("show",S.mode==="sched"&&showSeen);if(!document.body.classList.contains("focus")||document.body.classList.contains("peek"))sb.style.bottom=($("card").offsetHeight+28)+"px";
+  {const da=$("dirArrow");if(ups.length&&ups[0].p.w){const s0=SH[ups[0].r.shape],tg=tangentAt(s0,ups[0].p.w.d),rel=((tg-map.getBearing())%360+360)%360;const right=Math.sin(rel/R2D)>=0;da.className=right?"r":"l";da.style.display="block"}else da.style.display="none"}
   document.querySelectorAll(".pass.hot").forEach(e=>e.classList.remove("hot"));
-  if(!ups.length){setCount("–:––","");setWho(S.mode==="live"&&!lastOK?"Waiting for DART…":"No trains scheduled soon",S.mode==="live"&&!lastOK?"":(S.mode==="sched"?"Nothing in the next 4 hours":"Check back in a few minutes"));$("more").innerHTML="";$("barFill").style.width="0";$("age").textContent="";return}
+  if(!ups.length){$("dirArrow").style.display="none";$("bSeen").classList.remove("show");setCount("–:––","");setWho(S.mode==="live"&&!lastOK?"Waiting for DART…":"No trains scheduled soon",S.mode==="live"&&!lastOK?"":(S.mode==="sched"?"Nothing in the next 4 hours":"Check back in a few minutes"));$("more").innerHTML="";$("barFill").style.width="0";$("age").textContent="";return}
   const u=ups[0],s=SH[u.r.shape],col=colOf(s);
   setCount(u.rem<=3?"Now":fmt(u.rem),u.rem<=3?"now":(u.rem>=600?"small":""));
   const clock=t=>new Date(t*1000).toLocaleTimeString([], {hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"});
