@@ -95,6 +95,18 @@ body.aim #bSeen{display:none!important}
 #dirArrow.r path{stroke:#D63B2F}#dirArrow.l path{stroke:#2563C9}
 body.focus:not(.peek) #dirArrow{top:calc(env(safe-area-inset-top) + 30px);left:auto;right:18px;transform:none;width:96px}
 body.aim #dirArrow{display:none!important}
+#rec{position:fixed;left:0;right:0;bottom:0;z-index:10;max-height:86%;overflow:auto;border-radius:28px 28px 0 0;padding:10px 20px calc(env(safe-area-inset-bottom) + 24px);transform:translateY(105%);transition:transform .35s cubic-bezier(.2,.8,.2,1);max-width:640px;margin:0 auto;-webkit-overflow-scrolling:touch}
+#rec.open{transform:none}
+#recTiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 14px}
+.tile{border:1px solid var(--cardLine);border-radius:18px;padding:14px 16px;background:var(--field);display:flex;align-items:center;justify-content:space-between}
+.tile .num{font-family:"Instrument Serif",Georgia,serif;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.tile .lab{font-size:12px;color:var(--mut);margin-top:4px}
+.tile svg{width:46px;height:12px}
+.recRow{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--cardLine);font-size:14px}
+.recRow .n{flex:1;min-width:0}.recRow .n span{color:var(--mut)}
+.recRow .t{font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap}
+.recRow svg{width:26px;height:10px;flex:none}
+.recRow .seen{font-size:11px;color:var(--mut);margin-left:6px}
 /* recenter pill */
 #recenter{position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:none;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
 /* sheet */
@@ -151,7 +163,7 @@ ol.p{padding-left:18px}
 <div id="top">
   <div id="brand" class="glass"><span class="eyebrow">Window</span><b><span id="live"></span><span id="modeTxt">Starting…</span></b></div>
   <div id="tools">
-    <button class="ib glass" id="bTheme" aria-label="Light or dark"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+    <button class="ib glass" id="bRec" aria-label="Today's trains"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
     <button class="ib glass" id="bTurn" aria-label="Turn your view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     <button class="ib glass" id="bSystem" aria-label="Zoom out to all lines"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
     <button class="ib glass" id="bFull" aria-label="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -179,12 +191,25 @@ ol.p{padding-left:18px}
 <button id="turnR" class="glass turn" aria-label="Turn right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4l5 5-5 5"/><path d="M20 9h-9a7 7 0 0 0 0 14h2"/></svg></button>
 <div id="aimBar" class="glass" style="display:none;position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:12;border-radius:24px;padding:16px 18px;max-width:520px;margin:0 auto">
   <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="eyebrow">Turn your view</span><b id="aimDeg" style="font-size:14px"></b></div>
-  <div style="font-size:15px;margin:6px 0 12px">Tap or hold the arrows until the shaded view matches what you see out your window.</div>
+  <div style="font-size:14px;margin:6px 0 8px;color:var(--mut)">Use the arrows to turn. Use the sliders to match the shaded area to what you can actually see.</div>
+  <label class="f" style="margin:6px 0 2px">Direction <b id="aimHdgTxt"></b></label>
+  <input type="range" id="aimHdg" min="0" max="359" step="1">
+  <label class="f" style="margin:6px 0 2px">View width <b id="aimFovTxt"></b></label>
+  <input type="range" id="aimFov" min="20" max="180" step="1">
+  <label class="f" style="margin:6px 0 2px">How far you can see <b id="aimRngTxt"></b></label>
+  <input type="range" id="aimRng" min="150" max="3000" step="25" style="margin-bottom:12px">
   <div class="row2"><button class="btn pri" id="aimDone" style="flex:1">Done</button><button class="btn" id="aimCancel">Cancel</button></div>
 </div>
 <div id="toast" class="glass"></div>
 
 <div id="scrim"></div>
+<div id="rec" class="glass" role="dialog" aria-label="Today's trains">
+  <div id="grab2" style="width:38px;height:5px;border-radius:3px;background:var(--cardLine);margin:2px auto 8px"></div>
+  <h2 style="font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:30px;margin:4px 0 2px;display:flex;justify-content:space-between;align-items:center">Today <button class="ib" id="bRecClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <p class="p" id="recSub" style="margin-top:0"></p>
+  <div id="recTiles"></div>
+  <div id="recList"></div>
+</div>
 <div id="sheet" class="glass" role="dialog" aria-label="Settings">
   <div id="grab"></div>
   <h2>Settings <button class="ib" id="bClose" aria-label="Close settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
@@ -643,9 +668,30 @@ function markSeen(){const now=Date.now()/1000;let best=null;
   for(const u of lastUps){const d=Math.abs(u.rawAt-now);if(d<300&&(!best||d<Math.abs(best.rawAt-now)))best=u}
   if(!best){toast("No train was due in the last or next 5 minutes, so nothing to learn from.");return}
   const s=SH[best.r.shape],k=calKey(s),err=now-best.rawAt,c=CAL[k]||{off:0,n:0};
+  SEEN[best.r.id]=1;store.set("seen",SEEN);
   c.off=c.n?Math.round((c.off*Math.min(c.n,4)+err)/(Math.min(c.n,4)+1)):Math.round(err);c.n++;CAL[k]=c;store.set("cal",CAL);
   toast(lineName(s)+" to "+prettyHead(s)+" was "+Math.abs(Math.round(err))+"s "+(err<0?"early":"late")+". Future countdowns for this direction adjust by "+(c.off>0?"+":"")+c.off+"s.",6000);render()}
 $("bSeen").onclick=markSeen;
+
+
+/* ============ today's records ============ */
+const ARW=(right)=>`<svg viewBox="0 0 46 12" aria-hidden="true"><path d="${right?"M2 6H43M36 1.5L43.5 6L36 10.5":"M44 6H3M10 1.5L2.5 6L10 10.5"}" fill="none" stroke="${right?"#D63B2F":"#2563C9"}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const SEEN=store.get("seen",{});
+function goesRight(s,w){const tg=tangentAt(s,w.d),rel=((tg-(S.hdg||0))%360+360)%360;return Math.sin(rel/R2D)>=0}
+function todayPasses(){if(!SCHED||!S.pin)return[];const c=chicagoNow(),y=prevDay(c.ymd,c.wd),now=Date.now()/1000,out=[];
+  for(const day of[{ymd:c.ymd,mid:c.mid,list:tripsFor(c.ymd,c.wd)},{ymd:y.ymd,mid:c.mid-86400,list:tripsFor(y.ymd,y.wd)}])
+    for(const i of day.list){const t=SCHED.trips[i],s=SH[t[0]],w=WATCH[t[0]];if(!s||!w)continue;const tt=tripTimeAt(t,w.d);if(tt==null)continue;
+      const at=day.mid+t[2]+tt+calOffset(s);if(at<c.mid||at>now)continue;out.push({id:day.ymd+"|"+i,s,at,right:goesRight(s,w)})}
+  return out.sort((a,b)=>b.at-a.at)}
+function renderRec(){const L=todayPasses(),r=L.filter(x=>x.right).length,l=L.length-r;
+  const clock=t=>new Date(t*1000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"});
+  $("recSub").textContent=S.mode==="sched"?"Trains that passed your window since midnight, from DART's timetable"+(Object.keys(CAL).length?" with your timing adjustments":"")+".":"Based on DART's timetable.";
+  $("recTiles").innerHTML=`<div class="tile"><div><div class="num">${r}</div><div class="lab">going right</div></div>${ARW(true)}</div><div class="tile"><div><div class="num">${l}</div><div class="lab">going left</div></div>${ARW(false)}</div>`;
+  $("recList").innerHTML=L.length?L.map(x=>`<div class="recRow"><span class="dot" style="background:${colOf(x.s)}"></span>${ARW(x.right)}<span class="n">${lineName(x.s)} <span>to ${prettyHead(x.s)}</span>${SEEN[x.id]?'<span class="seen">· you saw it</span>':""}</span><span class="t">${clock(x.at)}</span></div>`).join(""):'<p class="p">No trains have passed yet today.</p>'}
+let recT=null;
+function openRec(){closeSheet();renderRec();$("rec").classList.add("open");$("scrim").style.display="block";clearInterval(recT);recT=setInterval(renderRec,15000)}
+function closeRec(){$("rec").classList.remove("open");clearInterval(recT);if(!$("sheet").classList.contains("open"))$("scrim").style.display="none"}
+$("bRec").onclick=openRec;$("bRecClose").onclick=closeRec;
 
 /* ============ countdown ============ */
 const fmt=sec=>{sec=Math.max(0,Math.round(sec));const m=Math.floor(sec/60),s=sec%60;return m>=60?Math.floor(m/60)+"h "+(m%60)+"m":m+":"+String(s).padStart(2,"0")};
@@ -711,13 +757,19 @@ function aimView(){const[ux,uy]=toXY(S.pin[0],S.pin[1]);const H=window.innerHeig
   const cz=map.getZoom(),z=(cz>=15.5&&cz<=17.5)?cz:16.2,k=78271.517*Math.cos(S.pin[0]*Math.PI/180),ppm=Math.pow(2,z)/k;const yPin=H-bar-120,fwd=(yPin-H/2)/ppm;
   const c=toLL(ux+fwd*Math.sin(aimH/R2D),uy+fwd*Math.cos(aimH/R2D));
   programmatic=true;map.jumpTo({center:[c[1],c[0]],zoom:z,bearing:aimH,padding:{top:0,bottom:0,left:0,right:0}});programmatic=false;
-  coneOnly(aimH);$("aimDeg").textContent="Facing "+DIRS[Math.round(aimH/45)%8]+" · "+Math.round(aimH)+"°"}
+  coneOnly(aimH);$("aimDeg").textContent="Facing "+DIRS[Math.round(aimH/45)%8]+" · "+Math.round(aimH)+"°";$("aimHdg").value=Math.round(aimH);$("aimHdgTxt").textContent=Math.round(aimH)+"°"}
 function turn(by){aimH=((aimH+by)%360+360)%360;aimView()}
+let aimSaved=null;
+function aimLabels(){$("aimFovTxt").textContent=S.fov+"°";$("aimRngTxt").textContent=mi(S.rng)}
+$("aimHdg").addEventListener("input",e=>{aimH=+e.target.value;aimView()});
+$("aimFov").addEventListener("input",e=>{S.fov=+e.target.value;aimLabels();coneOnly(aimH)});
+$("aimRng").addEventListener("input",e=>{S.rng=+e.target.value;aimLabels();coneOnly(aimH)});
 function startAim(){if(!S.pin){toast("Set your spot first");return}
-  closeSheet();clickMode=null;setHint("");aiming=true;aimH=S.hdg==null?0:S.hdg;document.body.classList.add("aim");$("aimBar").style.display="block";
+  closeSheet();closeRec();clickMode=null;setHint("");aiming=true;aimH=S.hdg==null?0:S.hdg;aimSaved={fov:S.fov,rng:S.rng};$("aimFov").value=S.fov;$("aimRng").value=S.rng;aimLabels();document.body.classList.add("aim");$("aimBar").style.display="block";
   map.dragRotate.disable();map.touchZoomRotate.disableRotation();aimView()}
 function endAim(save){aiming=false;clearInterval(turnT);document.body.classList.remove("aim");$("aimBar").style.display="none";map.dragRotate.enable();map.touchZoomRotate.enableRotation();
-  if(save){S.hdg=Math.round(aimH);store.set("hdg",S.hdg);toast("Saved. Your window faces "+DIRS[Math.round(S.hdg/45)%8]+".")}
+  if(save){S.hdg=Math.round(aimH);store.set("hdg",S.hdg);store.set("fov",S.fov);store.set("rng",S.rng);$("fov").value=S.fov;$("rng").value=S.rng;updLabels();toast("Saved. Your window faces "+DIRS[Math.round(S.hdg/45)%8]+".")}
+  else if(aimSaved){S.fov=aimSaved.fov;S.rng=aimSaved.rng}
   afterSpot()}
 for(const[id,dir]of[["turnL",-1],["turnR",1]]){const el=$(id);
   el.addEventListener("pointerdown",e=>{e.preventDefault();turn(dir*3);clearInterval(turnT);let n=0;turnT=setInterval(()=>{n++;turn(dir*(n>10?4:2))},70)});
@@ -736,7 +788,7 @@ map.on("click",e=>{
 /* ============ settings sheet ============ */
 function openSheet(){$("sheet").classList.add("open");$("scrim").style.display="block"}
 function closeSheet(){$("sheet").classList.remove("open");$("scrim").style.display="none"}
-$("bSet").onclick=openSheet;$("bClose").onclick=closeSheet;$("scrim").onclick=closeSheet;
+$("bSet").onclick=()=>{closeRec();openSheet()};$("bClose").onclick=closeSheet;$("scrim").onclick=()=>{closeSheet();closeRec()};
 function afterSpot(){computeNear();drawPin();updLabels();goHome()}
 function setHdg(h){S.hdg=h==null?null:((h%360)+360)%360;store.set("hdg",S.hdg);afterSpot()}
 if($("bGPS"))$("bGPS").onclick=()=>{if(!navigator.geolocation)return toast("Location isn't available");toast("Finding you…");
@@ -767,7 +819,7 @@ $("fRef").oninput=e=>{S.ref=+e.target.value;updLabels()};
 function segs(){document.querySelectorAll("#themeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.theme));document.querySelectorAll("#modeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.v===S.mode))}
 function applyTheme(){const th=effTheme();if(th===curTheme)return;curTheme=th;applyThemeCss(th);map.setStyle(buildStyle(th),{diff:false})}
 document.querySelectorAll("#themeSeg button").forEach(b=>b.onclick=()=>{S.theme=b.dataset.v;store.set("theme",S.theme);segs();applyTheme()});
-$("bTheme").onclick=()=>{S.theme=effTheme()==="dark"?"light":"dark";store.set("theme",S.theme);segs();applyTheme()};
+
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(S.theme==="auto")applyTheme()});
 function clearTrains(){for(const k of Object.keys(TRK)){removeTrain(k);delete TRK[k]}alerted={};firstEta={}}
 document.querySelectorAll("#modeSeg button").forEach(b=>b.onclick=()=>{S.mode=b.dataset.v;store.set("mode2",S.mode);segs();clearTrains();lastOK=0;restartLoop()});
