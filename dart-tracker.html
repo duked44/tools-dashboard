@@ -426,6 +426,8 @@ function computeNear(){
     }
     const w=bestIn||bestAny;if(w){let din=w.d-10,dout=w.d-10;if(bestIn){while(inSegs.has(din-20))din-=20;while(inSegs.has(dout+20))dout+=20;dout+=20}else{din=w.d-60;dout=w.d+60}WATCH[s.id]={...w,inView:!!bestIn,din,dout}}
   }
+  // only tracks you can actually see count; fall back to the nearest track only if none is in view
+  if(Object.values(WATCH).some(w=>w.inView))for(const k of Object.keys(WATCH))if(!WATCH[k].inView)delete WATCH[k];
   for(const w of Object.values(WATCH)){let b=null,bd=1e9;for(const m of mids){const d=Math.hypot(m[0]-w.x,m[1]-w.y);if(d<bd){bd=d;b=m}}if(b&&bd<25){w.mx=b[0];w.my=b[1]}else{w.mx=w.x;w.my=w.y}}
   NEAR={ux,uy,R:Rv};
   nearFC={type:"FeatureCollection",features:fs};
