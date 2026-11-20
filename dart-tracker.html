@@ -286,6 +286,11 @@ ol.p{padding-left:18px}
     </details>
     <p class="p">Your key and spot stay on this phone only. The track map and station run times come from DART's published schedule (<span id="dv"></span>). Countdowns are estimates.</p>
   </div>
+  <div class="sec">
+    <span class="eyebrow">App</span>
+    <div class="row2"><button class="btn pri" id="bReload" style="flex:1">Reset and reload app</button></div>
+    <p class="p">Restarts the tracker and loads the newest version. Your spot, window view and timing adjustments are kept.</p>
+  </div>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -864,6 +869,8 @@ export default {
   }
 };`;
 $("wCode").value=WORKER;
+$("bReload").onclick=()=>{store.set("pin",S.pin);store.set("hdg",S.hdg);store.set("fov",S.fov);store.set("rng",S.rng);
+  location.replace(location.pathname+"?r="+Date.now()+location.hash)};
 $("bCopyW").onclick=async()=>{try{await navigator.clipboard.writeText(WORKER);toast("Worker code copied")}catch(e){$("wCode").select();toast("Select the code and copy it")}};
 new ResizeObserver(()=>map.resize()).observe(document.getElementById("map"));
 for(const t of[300,1000,2500])setTimeout(()=>map.resize(),t);
