@@ -72,8 +72,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--ground);color:va
 #miniHint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 44px);left:0;right:0;text-align:center;font-size:12px;color:var(--mut);z-index:4;display:none;pointer-events:none;transition:opacity 1s}
 body.focus #top,body.focus #card{opacity:0;pointer-events:none;transform:translateY(-8px)}
 body.focus #card{transform:translateY(12px)}
-body.focus #mini,body.focus #miniHint{display:flex}
-body.focus #miniHint{display:block}
+body.focus #mini{display:flex}
+body.focus .maplibregl-ctrl-bottom-right,body.focus .maplibregl-ctrl-bottom-left{display:none}
+body.focus.peek .maplibregl-ctrl-bottom-right{display:block}
 body.focus.peek #top,body.focus.peek #card{opacity:1;pointer-events:auto;transform:none}
 body.focus.peek #mini{display:none}
 body.aim #top,body.aim #card,body.aim #recenter{display:none!important}
@@ -158,7 +159,6 @@ ol.p{padding-left:18px}
 </div>
 
 <div id="mini"><span id="miniCount" class="serif">–:––</span><span id="miniWho"><span class="dot" id="miniDot" style="width:8px;height:8px"></span><span id="miniName"></span></span></div>
-<div id="miniHint">Tap anywhere for controls</div>
 <button id="recenter" class="glass">Back to my window</button>
 <div id="hint" class="glass"></div>
 <button id="turnL" class="glass turn" aria-label="Turn left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L4 9l5 5"/><path d="M4 9h9a7 7 0 0 1 0 14h-2"/></svg></button>
@@ -672,7 +672,7 @@ const standalone=matchMedia("(display-mode: standalone)").matches||navigator.sta
 $("fullHelp").innerHTML=canFS?"Full screen hides everything but the map and countdown. Tap the screen to bring the controls back.":
   "Full screen hides everything but the map and countdown. Tap the screen to bring the controls back."+(standalone?"":" To also hide Brave's address bar, add this page to your Home Screen: tap Brave's Share button, then <b>Add to Home Screen</b>. Open it from that icon.");
 function enterFocus(){document.body.classList.add("focus");document.body.classList.remove("peek");try{const e=document.documentElement;(e.requestFullscreen||e.webkitRequestFullscreen)?.call(e).catch?.(()=>{})}catch(e){}
-  if(!wake)wakeOn();setTimeout(()=>{if(view==="home")goHome()},400);const h=$("miniHint");h.style.opacity=1;setTimeout(()=>h.style.opacity=0,3500);placeRecenter()}
+  if(!wake)wakeOn();setTimeout(()=>{if(view==="home")goHome()},400);placeRecenter()}
 function exitFocus(){document.body.classList.remove("focus","peek");try{document.fullscreenElement&&document.exitFullscreen()}catch(e){}setTimeout(()=>{if(view==="home")goHome()},400);placeRecenter()}
 $("bFull").onclick=()=>{document.body.classList.contains("focus")?exitFocus():enterFocus();$("bFull").classList.toggle("on",document.body.classList.contains("focus"))};
 let peekT=null;
