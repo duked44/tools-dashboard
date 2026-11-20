@@ -163,11 +163,11 @@ ol.p{padding-left:18px}
   <div class="sec">
     <span class="eyebrow">Your spot</span>
     <p class="p" id="spotTxt">Not set.</p>
-    <div class="row2"><button class="btn pri" id="bGPS">Use my location once</button><button class="btn" id="bTapPin">Tap the map</button></div>
-    <label class="f" for="addr">Or type your address</label>
-    <div class="row2" style="flex-wrap:nowrap"><input type="text" id="addr" placeholder="123 Main St, Dallas" autocomplete="street-address" enterkeyhint="search"><button class="btn" id="bAddr">Find</button></div>
+    <label class="f" for="addr" style="margin-top:0">Search your address</label>
+    <div class="row2" style="flex-wrap:nowrap"><input type="text" id="addr" placeholder="123 Main St, Dallas" autocomplete="street-address" enterkeyhint="search"><button class="btn pri" id="bAddr">Find</button></div>
     <div id="addrRes"></div>
-    <p class="p">Your spot is saved on this phone and stays put. It only changes when you set it again here.</p>
+    <div class="row2" style="margin-top:10px"><button class="btn" id="bTapPin">Fine-tune on the map</button></div>
+    <p class="p">Your location is never used. The spot is saved only on this phone, and it stays put until you change it here.</p>
   </div>
 
   <div class="sec">
@@ -558,7 +558,7 @@ function render(){
   const now=Date.now()/1000;const C=$("count");
   const setWho=(name,sub,col)=>{$("whoName").textContent=name;$("whoSub").textContent=sub;$("whoDot").style.background=col||"#9a958b";$("miniName").textContent=name+(sub&&col?" "+sub.split(" · ")[0]:"");$("miniDot").style.background=col||"#9a958b"};
   const setCount=(t,cls)=>{C.textContent=t;C.className="serif"+(cls?" "+cls:"");$("miniCount").textContent=t};
-  if(!S.pin){setCount("–:––","");setWho("Set your spot","Open settings to begin");$("more").innerHTML="";$("age").textContent="";return}
+  if(!S.pin){setCount("–:––","");setWho("Search your address","Open settings to begin");$("more").innerHTML="";$("age").textContent="";return}
   if(!Object.keys(WATCH).length){setCount("–:––","");setWho("No track in view","Widen your view in settings");$("more").innerHTML="";return}
   const ups=[];for(const r of Object.values(TRK)){const p=predict(r);if(!p||p.passed)continue;const rem=p.at-now;if(rem<-20)continue;ups.push({r,p,rem})}
   ups.sort((a,b)=>a.rem-b.rem);
@@ -608,7 +608,7 @@ function closeSheet(){$("sheet").classList.remove("open");$("scrim").style.displ
 $("bSet").onclick=openSheet;$("bClose").onclick=closeSheet;$("scrim").onclick=closeSheet;
 function afterSpot(){computeNear();drawPin();updLabels();goHome()}
 function setHdg(h){S.hdg=h==null?null:((h%360)+360)%360;store.set("hdg",S.hdg);$("hdg").value=S.hdg??0;afterSpot()}
-$("bGPS").onclick=()=>{if(!navigator.geolocation)return toast("Location isn't available");toast("Finding you…");
+if($("bGPS"))$("bGPS").onclick=()=>{if(!navigator.geolocation)return toast("Location isn't available");toast("Finding you…");
   navigator.geolocation.getCurrentPosition(p=>{S.pin=[p.coords.latitude,p.coords.longitude];store.set("pin",S.pin);afterSpot();toast("Spot saved (accurate to about "+Math.round(p.coords.accuracy*3.281)+" ft). You can fine-tune it with Tap the map.",4500)},
   e=>{if(e.code===1){openSheet();toast("Location is blocked. In iPhone Settings → Privacy & Security → Location Services → Brave, choose While Using the App, then reload. Or type your address below.",9000)}else toast("Couldn't get your location ("+e.message+"). Try again, or type your address.",5000)},{enableHighAccuracy:true,timeout:20000,maximumAge:0})};
 async function findAddr(){const q=$("addr").value.trim();if(!q)return;$("addrRes").innerHTML='<p class="p">Searching…</p>';
