@@ -304,7 +304,7 @@ ol.p{padding-left:18px}
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="dart-data/rail.js"></script>
 <script src="dart-data/sched.js"></script>
-<script>const BUILD="20261120165142";</script>
+<script>const BUILD="20261120165900";</script>
 <script>const DATA = window.DART_RAIL; const SCHED = window.DART_SCHED || null;</script>
 <script>
 "use strict";
@@ -502,7 +502,8 @@ function goSystem(){view="system";programmatic=true;map.fitBounds([[-97.06,32.62
 function stationData(){if(view==="system"||!NEAR)return STATIONS;return{type:"FeatureCollection",features:STATIONS.features.filter(f=>{const[x,y]=toXY(f.geometry.coordinates[1],f.geometry.coordinates[0]);return Math.hypot(x-NEAR.ux,y-NEAR.uy)<NEAR.R*1.1})}}
 function refreshStations(){const d=stationData();for(const id of["stations","stations-l"]){const src=map.getSource(id);if(src)src.setData(d)}}
 function setSysOpacity(){refreshStations();if(map.getLayer("sys"))map.setPaintProperty("sys","line-opacity",["interpolate",["linear"],["zoom"],13,PAL[curTheme].sys,15,view==="system"?0.7:0])}
-function placeRecenter(){const r=$("recenter");r.style.bottom=(document.body.classList.contains("focus")&&!document.body.classList.contains("peek")?60:$("card").offsetHeight+28)+"px"}
+function aboveCard(){return Math.max(0,window.innerHeight-$("card").getBoundingClientRect().top)+12}
+function placeRecenter(){const r=$("recenter");r.style.bottom=(document.body.classList.contains("focus")&&!document.body.classList.contains("peek")?60:aboveCard())+"px"}
 map.on("movestart",e=>{if(!programmatic&&e.originalEvent&&S.pin){$("recenter").style.display="block";placeRecenter()}});
 
 /* ============ trains: top-view drawings ============ */
@@ -752,7 +753,7 @@ function render(){
       ups.push({r:r||{id:u.id,shape:u.shape,ts:now,stopped:false},p:{at,dist:started?u.w.d-r.disp:null,w:u.w,startAt:u.t0,trip:u.trip},rem,rawAt})}}
   else for(const r of Object.values(TRK)){const p=predict(r);if(!p||p.passed)continue;const rem=p.at-now;if(rem<-20)continue;ups.push({r,p,rem})}
   ups.sort((a,b)=>a.rem-b.rem);lastUps=ups.filter(x=>x.rawAt);
-  const sb=$("bSeen");sb.classList.toggle("show",S.mode==="sched"&&showSeen);if(!document.body.classList.contains("focus")||document.body.classList.contains("peek"))sb.style.bottom=($("card").offsetHeight+28)+"px";
+  const sb=$("bSeen");sb.classList.toggle("show",S.mode==="sched"&&showSeen);if(!document.body.classList.contains("focus")||document.body.classList.contains("peek"))sb.style.bottom=aboveCard()+"px";placeRecenter();
   {const da=$("dirArrow");if(ups.length&&ups[0].p.w){const s0=SH[ups[0].r.shape],tg=tangentAt(s0,ups[0].p.w.d),rel=((tg-map.getBearing())%360+360)%360;const right=Math.sin(rel/R2D)>=0;da.className=right?"r":"l";da.style.display="block"}else da.style.display="none"}
   document.querySelectorAll(".pass.hot").forEach(e=>e.classList.remove("hot"));
   if(!ups.length){$("dirArrow").style.display="none";$("bSeen").classList.remove("show");setCount("–:––","");setWho(S.mode==="live"&&!lastOK?"Waiting for DART…":"No trains scheduled soon",S.mode==="live"&&!lastOK?"":(S.mode==="sched"?"Nothing in the next 4 hours":"Check back in a few minutes"));$("more").innerHTML="";$("barFill").style.width="0";$("age").textContent="";return}
