@@ -1,0 +1,30 @@
+name: Update DART timetable
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"   # every 3 hours; DART posts new versions for special events and weather
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - dart-data/build.py
+      - .github/workflows/dart-schedule.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download DART's published timetable
+        run: curl -fsSL --retry 3 -o google_transit.zip https://www.dart.org/transitdata/latest/google_transit.zip
+      - name: Build tracker data
+        run: python3 dart-data/build.py google_transit.zip dart-data
+      - name: Commit if changed
+        run: |
+          git config user.name "dart-timetable-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add dart-data/rail.json dart-data/sched.json
+          if git diff --cached --quiet; then echo "No changes"; else git commit -m "Update DART timetable data" && git pull --rebase && git push; fi
