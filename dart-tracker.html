@@ -299,7 +299,7 @@ ol.p{padding-left:18px}
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="dart-data/rail.js"></script>
 <script src="dart-data/sched.js"></script>
-<script>const BUILD="20261120162438";</script>
+<script>const BUILD="20261120162908";</script>
 <script>const DATA = window.DART_RAIL; const SCHED = window.DART_SCHED || null;</script>
 <script>
 "use strict";
@@ -811,7 +811,8 @@ let stPopup=null;
 function stationAt(pt){const f=map.queryRenderedFeatures([[pt.x-14,pt.y-14],[pt.x+14,pt.y+14]],{layers:["stations"]});return f[0]}
 map.on("click",e=>{
   if(aiming)return;
-  if(!clickMode){const f=stationAt(e.point);if(f){if(stPopup)stPopup.remove();stPopup=new maplibregl.Popup({closeButton:false,offset:12,className:"stpop"}).setLngLat(f.geometry.coordinates).setHTML("<b>"+f.properties.name+"</b><br><span>DART station</span>").addTo(map);return}}
+  if(!clickMode){const f=stationAt(e.point);if(f){if(stPopup)stPopup.remove();stPopup=new maplibregl.Popup({closeButton:false,offset:12,className:"stpop"}).setLngLat(f.geometry.coordinates).setHTML("<b>"+f.properties.name+"</b><br><span>DART station</span>").addTo(map);
+    const p=stPopup;clearTimeout(stPopup._t);p._t=setTimeout(()=>{const el=p.getElement();if(el){el.style.transition="opacity .6s";el.style.opacity="0"}setTimeout(()=>p.remove(),650)},5000);return}}
   if(clickMode==="pin"){S.pin=[e.lngLat.lat,e.lngLat.lng];store.set("pin",S.pin);clickMode=null;setHint("");computeNear();drawPin();updLabels();if(S.hdg==null){startAim();toast("Spot saved. Now turn the view to match your window.")}else{goHome();toast("Spot saved.")}return}
   
   if(document.body.classList.contains("focus")){document.body.classList.toggle("peek");clearTimeout(peekT);if(document.body.classList.contains("peek"))peekT=setTimeout(()=>document.body.classList.remove("peek"),6000);placeRecenter()}
