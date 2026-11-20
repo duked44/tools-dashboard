@@ -164,6 +164,9 @@ ol.p{padding-left:18px}
     <span class="eyebrow">Your spot</span>
     <p class="p" id="spotTxt">Not set.</p>
     <div class="row2"><button class="btn pri" id="bGPS">Use my location once</button><button class="btn" id="bTapPin">Tap the map</button></div>
+    <label class="f" for="addr">Or type your address</label>
+    <div class="row2" style="flex-wrap:nowrap"><input type="text" id="addr" placeholder="123 Main St, Dallas" autocomplete="street-address" enterkeyhint="search"><button class="btn" id="bAddr">Find</button></div>
+    <div id="addrRes"></div>
     <p class="p">Your spot is saved on this phone and stays put. It only changes when you set it again here.</p>
   </div>
 
@@ -607,7 +610,16 @@ function afterSpot(){computeNear();drawPin();updLabels();goHome()}
 function setHdg(h){S.hdg=h==null?null:((h%360)+360)%360;store.set("hdg",S.hdg);$("hdg").value=S.hdg??0;afterSpot()}
 $("bGPS").onclick=()=>{if(!navigator.geolocation)return toast("Location isn't available");toast("Finding you…");
   navigator.geolocation.getCurrentPosition(p=>{S.pin=[p.coords.latitude,p.coords.longitude];store.set("pin",S.pin);afterSpot();toast("Spot saved (accurate to about "+Math.round(p.coords.accuracy*3.281)+" ft). You can fine-tune it with Tap the map.",4500)},
-  e=>toast("Couldn't get your location: "+e.message,4000),{enableHighAccuracy:true,timeout:20000,maximumAge:0})};
+  e=>{if(e.code===1){openSheet();toast("Location is blocked. In iPhone Settings → Privacy & Security → Location Services → Brave, choose While Using the App, then reload. Or type your address below.",9000)}else toast("Couldn't get your location ("+e.message+"). Try again, or type your address.",5000)},{enableHighAccuracy:true,timeout:20000,maximumAge:0})};
+async function findAddr(){const q=$("addr").value.trim();if(!q)return;$("addrRes").innerHTML='<p class="p">Searching…</p>';
+  try{const r=await fetch("https://photon.komoot.io/api/?limit=5&lat=32.8&lon=-96.8&q="+encodeURIComponent(q));const j=await r.json();
+    const fs=(j.features||[]).filter(f=>f.geometry&&f.geometry.coordinates);
+    if(!fs.length){$("addrRes").innerHTML='<p class="p">No match. Try adding the city.</p>';return}
+    $("addrRes").innerHTML="";fs.forEach(f=>{const p=f.properties||{};const b=document.createElement("button");b.className="btn";b.style.cssText="display:block;width:100%;text-align:left;margin-top:8px";
+      b.textContent=[p.housenumber&&p.street?p.housenumber+" "+p.street:(p.name||p.street),p.city||p.district,p.state].filter(Boolean).join(", ");
+      b.onclick=()=>{const[lo,la]=f.geometry.coordinates;S.pin=[la,lo];store.set("pin",S.pin);$("addrRes").innerHTML="";afterSpot();toast("Spot saved. Fine-tune it with Tap the map if needed, then set your window direction.",5000)};$("addrRes").appendChild(b)})}
+  catch(e){$("addrRes").innerHTML='<p class="p">Address search isn\'t reachable right now. Use Tap the map instead.</p>'}}
+$("bAddr").onclick=findAddr;$("addr").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();findAddr()}});
 $("bTapPin").onclick=()=>{closeSheet();clickMode="pin";setHint("Tap exactly where your window is")};
 $("bAim").onclick=()=>{if(!S.pin)return toast("Set your spot first");closeSheet();clickMode="aim";setHint("Tap something you can see out the window")};
 const DIRS=["N","NE","E","SE","S","SW","W","NW"];
