@@ -109,8 +109,11 @@ body.aim #dirArrow{display:none!important}
 .recRow .t{font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap}
 .recRow svg{width:26px;height:10px;flex:none}
 .recRow .seen{font-size:11px;color:var(--mut);margin-left:6px}
+.stpop .maplibregl-popup-content{background:var(--card);color:var(--ink);border:1px solid var(--cardLine);border-radius:14px;padding:9px 13px;font:14px Inter,system-ui,sans-serif;box-shadow:0 8px 24px -10px var(--cardShadow);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.stpop .maplibregl-popup-content span{font-size:12px;color:var(--mut)}
+.stpop .maplibregl-popup-tip{display:none}
 /* recenter pill */
-#recenter{position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:none;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
+#recenter{position:fixed;left:16px;z-index:5;display:none;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
 /* sheet */
 #scrim{position:fixed;inset:0;background:rgba(0,0,0,.18);z-index:9;display:none}
 #sheet{position:fixed;left:0;right:0;bottom:0;z-index:10;max-height:86%;overflow:auto;border-radius:28px 28px 0 0;padding:10px 20px calc(env(safe-area-inset-bottom) + 24px);transform:translateY(105%);transition:transform .35s cubic-bezier(.2,.8,.2,1);max-width:640px;margin:0 auto;-webkit-overflow-scrolling:touch}
@@ -296,7 +299,7 @@ ol.p{padding-left:18px}
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="dart-data/rail.js"></script>
 <script src="dart-data/sched.js"></script>
-<script>const BUILD="20261120162122";</script>
+<script>const BUILD="20261120162438";</script>
 <script>const DATA = window.DART_RAIL; const SCHED = window.DART_SCHED || null;</script>
 <script>
 "use strict";
@@ -397,6 +400,9 @@ function systemFeatures(){
   return{type:"FeatureCollection",features:fs};
 }
 systemFC=systemFeatures();
+function prettyStop(n){let t=n.replace(/\s+@\s+/," & ").replace(/\s*-\s*(N|S|E|W|NB|SB|EB|WB)\s*-\s*(NS|FS|MB)\s*$/i,"").replace(/\s+SILVER LINE STATION$/i," (Silver Line)").replace(/\s+STREETCAR STATION$/i,"").replace(/\s+STATION$/i,"");return titleCase(t).replace(/\bDart\b/,"DART").replace(/\bUnt\b/,"UNT").replace(/\bLbj\b/,"LBJ").replace(/\bDfw\b/,"DFW").replace(/\bT&p\b/,"T&P")}
+const STATIONS=(()=>{const g={};for(const[id,v]of Object.entries(DATA.stops)){const n=prettyStop(v[0]);(g[n]=g[n]||[]).push([v[2],v[1]])}
+  return{type:"FeatureCollection",features:Object.entries(g).map(([n,ps])=>({type:"Feature",properties:{name:n},geometry:{type:"Point",coordinates:[ps.reduce((a,p)=>a+p[0],0)/ps.length,ps.reduce((a,p)=>a+p[1],0)/ps.length]}}))}})();
 function addOverlays(){
   const P=PAL[curTheme];
   const add=(id,data)=>{if(!map.getSource(id))map.addSource(id,{type:"geojson",data})};
@@ -408,6 +414,10 @@ function addOverlays(){
   map.addLayer({id:"bed",type:"line",source:"near",layout:{"line-cap":"butt","line-join":"round"},paint:{"line-color":P.bed,"line-width":w(14),"line-opacity":["get","f"]}});
   map.addLayer({id:"ties",type:"line",source:"near",layout:{"line-cap":"butt"},paint:{"line-color":P.tie,"line-width":w(10),"line-dasharray":[0.14,0.32],"line-opacity":["get","f"]}});
   map.addLayer({id:"rails",type:"line",source:"near",layout:{"line-cap":"butt","line-join":"round"},paint:{"line-color":P.rail,"line-width":w(1),"line-gap-width":w(4.6),"line-opacity":["get","f"]}});
+  add("stations",stationData());
+  map.addLayer({id:"stations",type:"circle",source:"stations",minzoom:9,paint:{"circle-radius":["interpolate",["linear"],["zoom"],9,2.2,14,5,17,9],"circle-color":P.ground,"circle-stroke-color":curTheme==="dark"?"#EEEBE4":"#1E1D1A","circle-stroke-width":["interpolate",["linear"],["zoom"],10,1.2,16,2.4]}});
+  add("stations-l",stationData());
+  map.addLayer({id:"station-names",type:"symbol",source:"stations-l",minzoom:15.5,layout:{"text-field":["get","name"],"text-font":["Noto Sans Regular"],"text-size":12,"text-offset":[0,1.3],"text-anchor":"top","text-optional":true},paint:{"text-color":curTheme==="dark"?"#EEEBE4":"#1E1D1A","text-halo-color":P.ground,"text-halo-width":1.6}});
 }
 let homed=false;
 map.on("style.load",()=>{addOverlays();if(!homed){homed=true;setTimeout(()=>goHome(false),50)}});
@@ -448,7 +458,7 @@ function computeNear(){
   coneFC={type:"FeatureCollection",features:cf};
   refreshSources();drawPassMarkers();
 }
-function refreshSources(){const n=map.getSource("near"),c=map.getSource("cone");n&&n.setData(nearFC);c&&c.setData(coneFC)}
+function refreshSources(){const n=map.getSource("near"),c=map.getSource("cone");n&&n.setData(nearFC);c&&c.setData(coneFC);refreshStations()}
 map.on("load",()=>{refreshSources();goHome(false)});
 
 /* pin */
@@ -484,7 +494,9 @@ let programmatic=false;
 function goHome(anim=true){const cam=homeCamera();if(!cam)return;view="home";programmatic=true;
   anim?map.easeTo({...cam,duration:900}):map.jumpTo(cam);setTimeout(()=>programmatic=false,950);$("recenter").style.display="none";setSysOpacity();$("bSystem").classList.remove("on")}
 function goSystem(){view="system";programmatic=true;map.fitBounds([[-97.06,32.62],[-96.55,33.06]],{bearing:0,padding:{top:90,bottom:$("card").offsetHeight+30,left:20,right:20},duration:900});setTimeout(()=>programmatic=false,950);setSysOpacity();$("bSystem").classList.add("on");$("recenter").style.display="block";placeRecenter()}
-function setSysOpacity(){if(map.getLayer("sys"))map.setPaintProperty("sys","line-opacity",["interpolate",["linear"],["zoom"],13,PAL[curTheme].sys,15,view==="system"?0.7:0])}
+function stationData(){if(view==="system"||!NEAR)return STATIONS;return{type:"FeatureCollection",features:STATIONS.features.filter(f=>{const[x,y]=toXY(f.geometry.coordinates[1],f.geometry.coordinates[0]);return Math.hypot(x-NEAR.ux,y-NEAR.uy)<NEAR.R*1.1})}}
+function refreshStations(){const d=stationData();for(const id of["stations","stations-l"]){const src=map.getSource(id);if(src)src.setData(d)}}
+function setSysOpacity(){refreshStations();if(map.getLayer("sys"))map.setPaintProperty("sys","line-opacity",["interpolate",["linear"],["zoom"],13,PAL[curTheme].sys,15,view==="system"?0.7:0])}
 function placeRecenter(){const r=$("recenter");r.style.bottom=(document.body.classList.contains("focus")&&!document.body.classList.contains("peek")?60:$("card").offsetHeight+28)+"px"}
 map.on("movestart",e=>{if(!programmatic&&e.originalEvent&&S.pin){$("recenter").style.display="block";placeRecenter()}});
 
@@ -795,8 +807,11 @@ $("aimDone").onclick=()=>endAim(true);$("aimCancel").onclick=()=>endAim(false);
 
 /* ============ map taps ============ */
 let clickMode=null;
+let stPopup=null;
+function stationAt(pt){const f=map.queryRenderedFeatures([[pt.x-14,pt.y-14],[pt.x+14,pt.y+14]],{layers:["stations"]});return f[0]}
 map.on("click",e=>{
   if(aiming)return;
+  if(!clickMode){const f=stationAt(e.point);if(f){if(stPopup)stPopup.remove();stPopup=new maplibregl.Popup({closeButton:false,offset:12,className:"stpop"}).setLngLat(f.geometry.coordinates).setHTML("<b>"+f.properties.name+"</b><br><span>DART station</span>").addTo(map);return}}
   if(clickMode==="pin"){S.pin=[e.lngLat.lat,e.lngLat.lng];store.set("pin",S.pin);clickMode=null;setHint("");computeNear();drawPin();updLabels();if(S.hdg==null){startAim();toast("Spot saved. Now turn the view to match your window.")}else{goHome();toast("Spot saved.")}return}
   
   if(document.body.classList.contains("focus")){document.body.classList.toggle("peek");clearTimeout(peekT);if(document.body.classList.contains("peek"))peekT=setTimeout(()=>document.body.classList.remove("peek"),6000);placeRecenter()}
