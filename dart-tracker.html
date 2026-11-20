@@ -152,7 +152,7 @@ ol.p{padding-left:18px}
 .ln{fill:none;stroke:var(--roofLine)}
 .lf{fill:var(--roofLine)}
 .sh{fill:var(--shadow);filter:blur(3px)}
-.tdot{width:12px;height:12px;border-radius:50%;border:2px solid var(--ground);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.tdot{filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
 .pinwrap{width:44px;height:44px;pointer-events:none}
 .pass{width:14px;height:14px;border-radius:50%;background:var(--ground);border:1.6px solid var(--ink);position:relative;pointer-events:none}
 .pass.hot:after{content:"";position:absolute;inset:-2px;border-radius:50%;border:1.6px solid var(--pc,#E5413B);animation:pp 1.6s ease-out infinite}
@@ -296,7 +296,7 @@ ol.p{padding-left:18px}
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="dart-data/rail.js"></script>
 <script src="dart-data/sched.js"></script>
-<script>const BUILD="20261120161945";</script>
+<script>const BUILD="20261120162122";</script>
 <script>const DATA = window.DART_RAIL; const SCHED = window.DART_SCHED || null;</script>
 <script>
 "use strict";
@@ -517,7 +517,7 @@ const kindOf=s=>s.route==="SILVER"?"flirt":s.route==="TRE"?"tre":(s.route==="620
 function trainEl(s){
   const k=KINDS[kindOf(s)],col=colOf(s);
   const el=document.createElement("div");el.className="train";
-  el.innerHTML=`<svg viewBox="-4 -10 ${k.units+8} 20" preserveAspectRatio="none" aria-hidden="true"><rect class="sh" x="1" y="-5" width="${k.units}" height="13" rx="6"/>${k.body().replace(/LC/g,col)}</svg><div class="tdot" style="background:${col};display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)"></div>`;
+  el.innerHTML=`<svg viewBox="-4 -10 ${k.units+8} 20" preserveAspectRatio="none" aria-hidden="true"><rect class="sh" x="1" y="-5" width="${k.units}" height="13" rx="6"/>${k.body().replace(/LC/g,col)}</svg><svg class="tdot" viewBox="-11 -11 22 22" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible" aria-hidden="true"><path d="M9,0 L-6,-7.5 L-3,0 L-6,7.5 Z" fill="${col}" stroke="var(--ground)" stroke-width="2" stroke-linejoin="round"/></svg>`;
   el._k=k;return el}
 
 /* ============ live data: protobuf ============ */
@@ -663,7 +663,7 @@ function frame(t){
     m.setLngLat([ll[1],ll[0]]);m.setRotation(rot);
     const el=m.getElement(),Lpx=k.meters*pxPerM*TRAIN_SCALE,small=Lpx<26;
     if(el._small!==small){el._small=small;el.querySelector("svg").style.display=small?"none":"block";el.querySelector(".tdot").style.display=small?"block":"none"}
-    if(!small){const w=Lpx*(k.units+8)/k.units,h=w*20/(k.units+8)*1.45*TRAIN_WIDEN;el.style.width=w+"px";el.style.height=h+"px"}else{el.style.width="12px";el.style.height="12px"}
+    if(!small){const w=Lpx*(k.units+8)/k.units,h=w*20/(k.units+8)*1.45*TRAIN_WIDEN;el.style.width=w+"px";el.style.height=h+"px"}else{el.style.width="20px";el.style.height="20px"}
     let op=1;if(view==="home"&&NEAR){const rr=Math.hypot(c[0]-NEAR.ux,c[1]-NEAR.uy);const t=Math.min(1,Math.max(0,(NEAR.R-rr)/(NEAR.R*0.25)));op=t*t*(3-2*t)}
     if(el._op!==op){el._op=op;el.style.opacity=op}
   }
