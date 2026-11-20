@@ -77,6 +77,11 @@ body.focus #miniHint{display:block}
 body.focus.peek #top,body.focus.peek #card{opacity:1;pointer-events:auto;transform:none}
 body.focus.peek #mini{display:none}
 body.aim #top,body.aim #card,body.aim #recenter{display:none!important}
+.turn{display:none;position:fixed;top:42%;z-index:12;width:68px;height:68px;border-radius:34px;align-items:center;justify-content:center;color:var(--ink);padding:0;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none}
+.turn svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#turnL{left:14px}#turnR{right:14px}
+body.aim .turn{display:flex}
+.turn:active{background:var(--ink);color:var(--ground)}
 /* recenter pill */
 #recenter{position:fixed;left:50%;transform:translateX(-50%);z-index:5;display:none;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
 /* sheet */
@@ -134,6 +139,7 @@ ol.p{padding-left:18px}
   <div id="brand" class="glass"><span class="eyebrow">Window</span><b><span id="live"></span><span id="modeTxt">Starting…</span></b></div>
   <div id="tools">
     <button class="ib glass" id="bTheme" aria-label="Light or dark"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+    <button class="ib glass" id="bTurn" aria-label="Turn your view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     <button class="ib glass" id="bSystem" aria-label="Zoom out to all lines"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
     <button class="ib glass" id="bFull" aria-label="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="ib glass" id="bSet" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
@@ -154,9 +160,11 @@ ol.p{padding-left:18px}
 <div id="miniHint">Tap anywhere for controls</div>
 <button id="recenter" class="glass">Back to my window</button>
 <div id="hint" class="glass"></div>
+<button id="turnL" class="glass turn" aria-label="Turn left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L4 9l5 5"/><path d="M4 9h9a7 7 0 0 1 0 14h-2"/></svg></button>
+<button id="turnR" class="glass turn" aria-label="Turn right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4l5 5-5 5"/><path d="M20 9h-9a7 7 0 0 0 0 14h2"/></svg></button>
 <div id="aimBar" class="glass" style="display:none;position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:12;border-radius:24px;padding:16px 18px;max-width:520px;margin:0 auto">
-  <div class="eyebrow" style="margin-bottom:4px">Window direction</div>
-  <div style="font-size:15px;margin-bottom:12px">Drag your finger toward what you see out your window. <b id="aimDeg"></b></div>
+  <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="eyebrow">Turn your view</span><b id="aimDeg" style="font-size:14px"></b></div>
+  <div style="font-size:15px;margin:6px 0 12px">Tap or hold the arrows until the shaded view matches what you see out your window.</div>
   <div class="row2"><button class="btn pri" id="aimDone" style="flex:1">Done</button><button class="btn" id="aimCancel">Cancel</button></div>
 </div>
 <div id="toast" class="glass"></div>
@@ -178,8 +186,8 @@ ol.p{padding-left:18px}
 
   <div class="sec">
     <span class="eyebrow">Window faces <b id="hdgTxt" style="letter-spacing:0;text-transform:none;color:var(--ink)"></b></span>
-    <div class="row2"><button class="btn pri" id="bAim">Set window direction</button></div>
-    <p class="p">The map turns flat, north up. Drag your finger from your building toward what you see out the window, then tap Done. You only do this once.</p>
+    <div class="row2"><button class="btn pri" id="bAim">Turn your view</button></div>
+    <p class="p">You can also tap the turn button at the top of the screen at any time. Your spot stays the same.</p>
     <label class="f">View width <b id="fovTxt"></b></label>
     <input type="range" id="fov" min="20" max="180" step="5">
     <label class="f">How far you can see <b id="rngTxt"></b></label>
@@ -388,7 +396,7 @@ function computeNear(){
   coneFC={type:"FeatureCollection",features:cf};
   refreshSources();drawPassMarkers();
 }
-function refreshSources(){if(!map.isStyleLoaded())return;const n=map.getSource("near"),c=map.getSource("cone");n&&n.setData(nearFC);c&&c.setData(coneFC)}
+function refreshSources(){const n=map.getSource("near"),c=map.getSource("cone");n&&n.setData(nearFC);c&&c.setData(coneFC)}
 map.on("load",()=>{refreshSources();goHome(false)});
 
 /* pin */
@@ -413,8 +421,8 @@ function homeCamera(){
   const focus=document.body.classList.contains("focus")&&!document.body.classList.contains("peek");
   const H=window.innerHeight,top=focus?(focusTop()):($("top").getBoundingClientRect().bottom+10),bottom=focus?40:($("card").offsetHeight+34);
   const avail=Math.max(160,H-top-bottom);
-  const lat=S.pin[0],k=156543.03*Math.cos(lat*Math.PI/180);
-  let pxPerM=(0.3*avail)/Math.max(dist,260);let z=Math.log2(pxPerM*k);z=Math.max(14,Math.min(17,z));pxPerM=Math.pow(2,z)/k;
+  const lat=S.pin[0],k=78271.517*Math.cos(lat*Math.PI/180);
+  let pxPerM=(0.6*avail)/Math.max(dist,260);let z=Math.log2(pxPerM*k);z=Math.max(14,Math.min(17,z));pxPerM=Math.pow(2,z)/k;
   const yPin=top+0.84*avail,fwd=(yPin-H/2)/pxPerM,h=S.hdg||0;
   const c=toLL(ux+fwd*Math.sin(h/R2D),uy+fwd*Math.cos(h/R2D));
   return{center:[c[1],c[0]],zoom:z,bearing:h,padding:{top:0,bottom:0,left:0,right:0}};
@@ -573,7 +581,7 @@ function removeTrain(id){if(MK[id]){MK[id].remove();delete MK[id]}}
 let lastFrame=performance.now();
 function frame(t){
   const dt=Math.min(0.25,(t-lastFrame)/1000);lastFrame=t;const now=Date.now()/1000;
-  const z=map.getZoom(),lat=S.pin?S.pin[0]:32.8,pxPerM=Math.pow(2,z)/(156543.03*Math.cos(lat*Math.PI/180));
+  const z=map.getZoom(),lat=S.pin?S.pin[0]:32.8,pxPerM=Math.pow(2,z)/(78271.517*Math.cos(lat*Math.PI/180));
   for(const r of Object.values(TRK)){
     const s=SH[r.shape];if(!s)continue;
     if(r.sched){const p=tripPos(r.trip,Math.max(0,now-r.t0));r.disp=p.d;r.d=p.d;r.stopped=p.stop}else{
@@ -655,29 +663,30 @@ function coneOnly(h){if(!S.pin||!map.getSource("cone"))return;const[ux,uy]=toXY(
   const ring=[[S.pin[1],S.pin[0]]];for(let a=-half;a<=half+.01;a+=Math.max(2,half/24)){const r=(h+a)/R2D;const p=toLL(ux+R*Math.sin(r),uy+R*Math.cos(r));ring.push([p[1],p[0]])}ring.push([S.pin[1],S.pin[0]]);
   map.getSource("cone").setData({type:"FeatureCollection",features:[{type:"Feature",properties:{k:"fill"},geometry:{type:"Polygon",coordinates:[ring]}},{type:"Feature",properties:{k:"edge"},geometry:{type:"LineString",coordinates:[ring[1],ring[0],ring[ring.length-2]]}}]});
   if(pinMk)pinMk.setRotation(h)}
-let aimH=null,aiming=false;
-function aimAt(pt){const ll=map.unproject(pt);const a=toXY(S.pin[0],S.pin[1]),b=toXY(ll.lat,ll.lng);if(Math.hypot(b[0]-a[0],b[1]-a[1])<3)return;
-  aimH=Math.round(brg(a[0],a[1],b[0],b[1]));coneOnly(aimH);$("aimDeg").textContent="Facing "+DIRS[Math.round(aimH/45)%8]+" ("+aimH+"°)"}
+let aimH=null,aiming=false,turnT=null;
+function aimView(){const[ux,uy]=toXY(S.pin[0],S.pin[1]);const H=window.innerHeight,bar=$("aimBar").offsetHeight||170;
+  const cz=map.getZoom(),z=(cz>=15.5&&cz<=17.5)?cz:16.2,k=78271.517*Math.cos(S.pin[0]*Math.PI/180),ppm=Math.pow(2,z)/k;const yPin=H-bar-120,fwd=(yPin-H/2)/ppm;
+  const c=toLL(ux+fwd*Math.sin(aimH/R2D),uy+fwd*Math.cos(aimH/R2D));
+  programmatic=true;map.jumpTo({center:[c[1],c[0]],zoom:z,bearing:aimH,padding:{top:0,bottom:0,left:0,right:0}});programmatic=false;
+  coneOnly(aimH);$("aimDeg").textContent="Facing "+DIRS[Math.round(aimH/45)%8]+" · "+Math.round(aimH)+"°"}
+function turn(by){aimH=((aimH+by)%360+360)%360;aimView()}
 function startAim(){if(!S.pin){toast("Set your spot first");return}
-  closeSheet();aiming=true;aimH=S.hdg;document.body.classList.add("aim");$("aimBar").style.display="block";$("aimDeg").textContent=S.hdg==null?"":"Facing "+DIRS[Math.round(S.hdg/45)%8];
-  map.dragPan.disable();map.dragRotate.disable();map.touchZoomRotate.disableRotation();
-  programmatic=true;map.jumpTo({center:[S.pin[1],S.pin[0]],zoom:16.3,bearing:0,padding:{top:0,bottom:180,left:0,right:0}});setTimeout(()=>programmatic=false,100);
-  if(S.hdg!=null)coneOnly(S.hdg)}
-function endAim(save){aiming=false;document.body.classList.remove("aim");$("aimBar").style.display="none";map.dragPan.enable();map.dragRotate.enable();map.touchZoomRotate.enableRotation();map.setPadding({top:0,bottom:0,left:0,right:0});
-  if(save&&aimH!=null){S.hdg=aimH;store.set("hdg",S.hdg);toast("Saved. Your view now faces "+DIRS[Math.round(aimH/45)%8]+".")}
+  closeSheet();clickMode=null;setHint("");aiming=true;aimH=S.hdg==null?0:S.hdg;document.body.classList.add("aim");$("aimBar").style.display="block";
+  map.dragRotate.disable();map.touchZoomRotate.disableRotation();aimView()}
+function endAim(save){aiming=false;clearInterval(turnT);document.body.classList.remove("aim");$("aimBar").style.display="none";map.dragRotate.enable();map.touchZoomRotate.enableRotation();
+  if(save){S.hdg=Math.round(aimH);store.set("hdg",S.hdg);toast("Saved. Your window faces "+DIRS[Math.round(S.hdg/45)%8]+".")}
   afterSpot()}
-const mapEl=document.getElementById("map");
-mapEl.addEventListener("pointerdown",e=>{if(!aiming)return;mapEl.setPointerCapture?.(e.pointerId);const r=mapEl.getBoundingClientRect();aimAt([e.clientX-r.left,e.clientY-r.top]);mapEl._aimDown=true});
-mapEl.addEventListener("pointermove",e=>{if(!aiming||!mapEl._aimDown)return;const r=mapEl.getBoundingClientRect();aimAt([e.clientX-r.left,e.clientY-r.top])});
-addEventListener("pointerup",()=>{mapEl._aimDown=false});
+for(const[id,dir]of[["turnL",-1],["turnR",1]]){const el=$(id);
+  el.addEventListener("pointerdown",e=>{e.preventDefault();turn(dir*3);clearInterval(turnT);let n=0;turnT=setInterval(()=>{n++;turn(dir*(n>10?4:2))},70)});
+  for(const ev of["pointerup","pointerleave","pointercancel"])el.addEventListener(ev,()=>clearInterval(turnT));}
 $("aimDone").onclick=()=>endAim(true);$("aimCancel").onclick=()=>endAim(false);
 
 /* ============ map taps ============ */
 let clickMode=null;
 map.on("click",e=>{
   if(aiming)return;
-  if(clickMode==="pin"){S.pin=[e.lngLat.lat,e.lngLat.lng];store.set("pin",S.pin);clickMode=null;setHint("");afterSpot();toast("Spot saved. Now set which way your window faces.");openSheet();return}
-  if(clickMode==="aim"){const a=toXY(S.pin[0],S.pin[1]),b=toXY(e.lngLat.lat,e.lngLat.lng);clickMode=null;setHint("");setHdg(Math.round(brg(a[0],a[1],b[0],b[1])));openSheet();return}
+  if(clickMode==="pin"){S.pin=[e.lngLat.lat,e.lngLat.lng];store.set("pin",S.pin);clickMode=null;setHint("");computeNear();drawPin();updLabels();if(S.hdg==null){startAim();toast("Spot saved. Now turn the view to match your window.")}else{goHome();toast("Spot saved.")}return}
+  
   if(document.body.classList.contains("focus")){document.body.classList.toggle("peek");clearTimeout(peekT);if(document.body.classList.contains("peek"))peekT=setTimeout(()=>document.body.classList.remove("peek"),6000);placeRecenter()}
 });
 
@@ -696,11 +705,12 @@ async function findAddr(){const q=$("addr").value.trim();if(!q)return;$("addrRes
     if(!fs.length){$("addrRes").innerHTML='<p class="p">No match. Try adding the city.</p>';return}
     $("addrRes").innerHTML="";fs.forEach(f=>{const p=f.properties||{};const b=document.createElement("button");b.className="btn";b.style.cssText="display:block;width:100%;text-align:left;margin-top:8px";
       b.textContent=[p.housenumber&&p.street?p.housenumber+" "+p.street:(p.name||p.street),p.city||p.district,p.state].filter(Boolean).join(", ");
-      b.onclick=()=>{const[lo,la]=f.geometry.coordinates;S.pin=[la,lo];store.set("pin",S.pin);$("addrRes").innerHTML="";afterSpot();toast("Spot saved. Fine-tune it with Tap the map if needed, then set your window direction.",5000)};$("addrRes").appendChild(b)})}
+      b.onclick=()=>{const[lo,la]=f.geometry.coordinates;S.pin=[la,lo];store.set("pin",S.pin);$("addrRes").innerHTML="";closeSheet();computeNear();drawPin();updLabels();
+        clickMode="pin";programmatic=true;map.jumpTo({center:[lo,la],zoom:17.3,bearing:0});programmatic=false;setHint("Now tap your exact building")};$("addrRes").appendChild(b)})}
   catch(e){$("addrRes").innerHTML='<p class="p">Address search isn\'t reachable right now. Use Tap the map instead.</p>'}}
 $("bAddr").onclick=findAddr;$("addr").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();findAddr()}});
 $("bTapPin").onclick=()=>{closeSheet();clickMode="pin";setHint("Tap exactly where your window is")};
-$("bAim").onclick=startAim;
+$("bAim").onclick=startAim;$("bTurn").onclick=startAim;
 const DIRS=["N","NE","E","SE","S","SW","W","NW"];
 let compOn=false;
 function updLabels(){
