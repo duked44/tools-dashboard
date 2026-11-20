@@ -153,6 +153,7 @@ ol.p{padding-left:18px}
     <div id="who"><span id="whoLine"><span class="dot" id="whoDot" style="background:#9a958b"></span><span id="whoName">Set your spot</span></span><span id="whoSub">Open settings to begin</span></div>
   </div>
   <div id="bar"><div id="barFill"></div></div>
+  <div id="seenRow" style="display:none;align-items:center;gap:10px"><button class="btn" id="bSeen" style="flex:1">It's passing my window now</button><span id="calTxt" style="font-size:12px;color:var(--mut);max-width:45%"></span></div>
   <div id="more"></div>
 </div>
 
@@ -407,7 +408,7 @@ function drawPin(){if(!S.pin){if(pinMk){pinMk.remove();pinMk=null}return}
   pinMk.setLngLat([S.pin[1],S.pin[0]]);pinMk.setRotation(S.hdg||0);pinMk.getElement().style.opacity=S.hdg==null?.6:1}
 /* pass-point markers */
 let passMks=[];
-function drawPassMarkers(){passMks.forEach(m=>m.remove());passMks=[];const done={};
+function drawPassMarkers(){passMks.forEach(m=>m.remove());passMks=[];for(const w of Object.values(WATCH))w.key=Math.round(w.mx/30)+","+Math.round(w.my/30);return;const done={};
   for(const[id,w]of Object.entries(WATCH)){const k=Math.round(w.mx/30)+","+Math.round(w.my/30);w.key=k;if(done[k])continue;done[k]=1;
     const el=document.createElement("div");el.className="pass";el.dataset.k=k;const ll=toLL(w.mx,w.my);
     passMks.push(new maplibregl.Marker({element:el}).setLngLat([ll[1],ll[0]]).addTo(map));w.key=k}}
@@ -437,25 +438,30 @@ function placeRecenter(){const r=$("recenter");r.style.bottom=(document.body.cla
 map.on("movestart",e=>{if(!programmatic&&e.originalEvent&&S.pin){$("recenter").style.display="block";placeRecenter()}});
 
 /* ============ trains: top-view drawings ============ */
-function lrvSVG(x0){
-  return `<g transform="translate(${x0},0)"><path class="r" stroke-width=".7" d="M7,-7H44V7H7C2.5,7 0,4 0,0C0,-4 2.5,-7 7,-7Z"/><rect class="bl" x="44" y="-6" width="3" height="12"/><rect class="r" stroke-width=".7" x="47" y="-7" width="18" height="14"/><rect class="bl" x="65" y="-6" width="3" height="12"/><path class="r" stroke-width=".7" d="M68,-7H105C109.5,-7 112,-4 112,0C112,4 109.5,7 105,7H68Z"/>`+
-  [[5,44],[47,65],[68,107]].map(([a,b])=>`<rect x="${a}" y="-7" width="${b-a}" height="1.8" fill="LC"/><rect x="${a}" y="5.2" width="${b-a}" height="1.8" fill="LC"/>`).join("")+
-  `<rect class="eq" stroke-width=".6" x="15" y="-3.6" width="18" height="7.2" rx="1.2"/><rect class="eq" stroke-width=".6" x="79" y="-3.6" width="18" height="7.2" rx="1.2"/><path class="ln" stroke-width=".9" d="M50,-3.5L56,0L50,3.5M62,-3.5L56,0L62,3.5"/><rect class="lf" x="54.6" y="-1.2" width="2.8" height="2.4"/><path class="gl" stroke-width="2" d="M3.2,-4.6C1.4,-2.6 1.4,2.6 3.2,4.6"/><path class="gl" stroke-width="2" d="M108.8,-4.6C110.6,-2.6 110.6,2.6 108.8,4.6"/></g>`}
-function carSVG(x,L,cabL,cabR,eq){
-  let d=`M${cabL?7:0},-7H${cabR?L-7:L}`+(cabR?`C${L-2.5},-7 ${L},-4 ${L},0C${L},4 ${L-2.5},7 ${L-7},7`:"V7")+(cabL?"H7C2.5,7 0,4 0,0C0,-4 2.5,-7 7,-7Z":"H0Z");
-  const a=cabL?5:0,b=L-(cabR?5:0);
-  let r=`<g transform="translate(${x},0)"><path class="r" stroke-width=".7" d="${d}"/><rect x="${a}" y="-7" width="${b-a}" height="1.8" fill="LC"/><rect x="${a}" y="5.2" width="${b-a}" height="1.8" fill="LC"/>`;
-  for(const[p,w]of eq)r+=`<rect class="eq" stroke-width=".6" x="${p}" y="-3.6" width="${w}" height="7.2" rx="1.2"/>`;
-  if(cabL)r+=`<path class="gl" stroke-width="2" d="M3.2,-4.6C1.4,-2.6 1.4,2.6 3.2,4.6"/>`;if(cabR)r+=`<path class="gl" stroke-width="2" d="M${L-3.2},-4.6C${L-1.4},-2.6 ${L-1.4},2.6 ${L-3.2},4.6"/>`;
-  return r+"</g>"}
-const J=x=>`<rect class="bl" x="${x}" y="-6" width="3" height="12"/>`;
+/* top-view drawings: body in the line color, roof details on top. Units: 1 = 1/3 m roughly; facing +x. */
+function cab(x,L,front,back){ // one car section path with rounded cab ends
+  const l=front?6:0,r=back?6:0;
+  return `M${x+l},-7H${x+L-r}`+(back?`C${x+L-2},-7 ${x+L},-4.5 ${x+L},0C${x+L},4.5 ${x+L-2},7 ${x+L-r},7`:`V7`)+`H${x+l}`+(front?`C${x+2},7 ${x},4.5 ${x},0C${x},-4.5 ${x+2},-7 ${x+l},-7Z`:`Z`)}
+function section(x,L,front,back,eq){
+  let g=`<path d="${cab(x,L,front,back)}" fill="LC" stroke="var(--roofLine)" stroke-width=".6"/>`;
+  g+=`<rect x="${x+(front?5:1)}" y="-4.6" width="${L-(front?5:1)-(back?5:1)}" height="9.2" rx="1.5" fill="#fff" opacity=".16"/>`; // roof panel
+  for(let i=x+(front?9:4);i<x+L-(back?8:3);i+=5)g+=`<path d="M${i},-4.6V4.6" stroke="#000" stroke-opacity=".12" stroke-width=".35"/>`; // roof seams
+  for(const[p,w]of eq)g+=`<rect x="${x+p}" y="-3.4" width="${w}" height="6.8" rx="1.2" class="eq" stroke-width=".5"/><path d="M${x+p+2},-1.4H${x+p+w-2}M${x+p+2},0H${x+p+w-2}M${x+p+2},1.4H${x+p+w-2}" stroke="var(--roofLine)" stroke-width=".35"/>`; // AC units with grilles
+  if(front)g+=`<path d="M${x+3},-4.8C${x+1.2},-2.6 ${x+1.2},2.6 ${x+3},4.8" fill="none" stroke="var(--glass)" stroke-width="2.2"/><circle cx="${x+4.5}" cy="-5.6" r=".7" fill="#fff" opacity=".85"/><circle cx="${x+4.5}" cy="5.6" r=".7" fill="#fff" opacity=".85"/>`;
+  if(back)g+=`<path d="M${x+L-3},-4.8C${x+L-1.2},-2.6 ${x+L-1.2},2.6 ${x+L-3},4.8" fill="none" stroke="var(--glass)" stroke-width="2.2"/><circle cx="${x+L-4.5}" cy="-5.6" r=".7" fill="#fff" opacity=".85"/><circle cx="${x+L-4.5}" cy="5.6" r=".7" fill="#fff" opacity=".85"/>`;
+  return g}
+const pant=x=>`<rect x="${x-3}" y="-2.2" width="6" height="4.4" rx=".6" fill="var(--bellows)" opacity=".75"/><path d="M${x-6},-4L${x},0L${x-6},4M${x+6},-4L${x},0L${x+6},4" fill="none" stroke="var(--bellows)" stroke-width=".9"/><path d="M${x-.3},-5.5V5.5" stroke="var(--bellows)" stroke-width="1.4"/>`;
+const J=x=>`<rect class="bl" x="${x}" y="-6.2" width="3" height="12.4" rx=".6"/><path d="M${x+.75},-6V6M${x+1.5},-6V6M${x+2.25},-6V6" stroke="#fff" stroke-opacity=".18" stroke-width=".3"/>`;
+function lrvSVG(x0){return `<g transform="translate(${x0},0)">`+section(0,44,1,0,[[14,12],[30,9]])+J(44)+section(47,18,0,0,[])+pant(56)+J(65)+section(68,44,0,1,[[5,9],[18,12]])+`</g>`}
+function carSVG(x,L,cabL,cabR,eq){return section(x,L,cabL,cabR,eq)}
 const KINDS={
   lrv:{units:227,meters:76,body:()=>lrvSVG(0)+`<rect class="lf" x="112" y="-1" width="3" height="2"/>`+lrvSVG(115)},
   flirt:{units:222,meters:81,body:()=>carSVG(0,50,1,0,[[14,16]])+J(50)+carSVG(53,46,0,0,[[15,16]])+J(99)+`<g transform="translate(102,0)"><rect x="0" y="-6.5" width="18" height="13" fill="#5E5B55" stroke="#3A3833" stroke-width=".7"/><path d="M3,-4H15M3,-1.3H15M3,1.3H15M3,4H15" stroke="#9C978E" stroke-width=".8"/></g>`+J(120)+carSVG(123,46,0,0,[[15,16]])+J(169)+carSVG(172,50,0,1,[[20,16]])},
-  tre:{units:158,meters:80,body:()=>{const bi=(x,cab)=>{let r=`<g transform="translate(${x},0)"><rect class="r" stroke-width=".7" x="0" y="-7.5" width="58" height="15" rx="${cab?6:3}"/>`;for(let i=6;i<58;i+=8)r+=`<path d="M${i},-7V7" class="ln" stroke-width=".5" opacity=".5"/>`;r+=`<rect x="2" y="-7.5" width="54" height="1.8" fill="LC"/><rect x="2" y="5.7" width="54" height="1.8" fill="LC"/>`;if(cab)r+=`<path class="gl" stroke-width="2" d="M3.2,-5C1.4,-3 1.4,3 3.2,5"/>`;return r+"</g>"};
+  tre:{units:158,meters:80,body:()=>{const bi=(x,cab)=>{let r=`<g transform="translate(${x},0)"><rect fill="LC" stroke="var(--roofLine)" stroke-width=".6" x="0" y="-7.5" width="58" height="15" rx="${cab?6:3}"/><rect x="3" y="-5" width="52" height="10" rx="1.5" fill="#fff" opacity=".16"/>`;for(let i=6;i<58;i+=6)r+=`<path d="M${i},-5V5" stroke="#000" stroke-opacity=".14" stroke-width=".4"/>`;if(cab)r+=`<path class="gl" stroke-width="2" d="M3.2,-5C1.4,-3 1.4,3 3.2,5"/>`;return r+"</g>"};
     return bi(0,1)+`<rect class="lf" x="58" y="-1" width="3" height="2"/>`+bi(61,0)+`<rect class="lf" x="119" y="-1" width="3" height="2"/><g transform="translate(122,0)"><path d="M0,-7H30C34,-7 36,-4 36,0C36,4 34,7 30,7H0Z" fill="#2B3550" stroke="#1B2238" stroke-width=".7"/><circle cx="8" r="3.4" fill="none" stroke="#9AA3B8" stroke-width=".8"/><circle cx="16" r="3.4" fill="none" stroke="#9AA3B8" stroke-width=".8"/><rect x="22" y="-3" width="6" height="6" fill="#3E4966"/><path d="M33,-4.6C34.6,-2.6 34.6,2.6 33,4.6" fill="none" stroke="#11151F" stroke-width="2"/></g>`}},
   street:{units:68,meters:25,body:()=>carSVG(0,24,1,0,[[9,10]])+J(24)+carSVG(27,14,0,0,[])+J(41)+carSVG(44,24,0,1,[[5,10]])}
 };
+const TRAIN_SCALE=2.6;
 const kindOf=s=>s.route==="SILVER"?"flirt":s.route==="TRE"?"tre":(s.route==="620"||s.route==="425")?"street":"lrv";
 function trainEl(s){
   const k=KINDS[kindOf(s)],col=colOf(s);
@@ -584,7 +590,7 @@ function frame(t){
   const z=map.getZoom(),lat=S.pin?S.pin[0]:32.8,pxPerM=Math.pow(2,z)/(78271.517*Math.cos(lat*Math.PI/180));
   for(const r of Object.values(TRK)){
     const s=SH[r.shape];if(!s)continue;
-    if(r.sched){const p=tripPos(r.trip,Math.max(0,now-r.t0));r.disp=p.d;r.d=p.d;r.stopped=p.stop}else{
+    if(r.sched){const p=tripPos(r.trip,Math.max(0,now-r.t0-calOffset(s)));r.disp=p.d;r.d=p.d;r.stopped=p.stop}else{
     // where the train should be now: last fix + estimated speed since then
     let v=r.stopped?0:(r.mspd&&r.mspd>1?r.mspd:schedSpeed(s,r.d));
     const nextStop=s.prof.find(p=>p[0]>r.d+5);const cap=nextStop?nextStop[0]:s.len;
@@ -598,14 +604,28 @@ function frame(t){
     if(!m){const el=trainEl(s);m=new maplibregl.Marker({element:el,rotationAlignment:"map",pitchAlignment:"map"}).setLngLat([ll[1],ll[0]]).addTo(map);m._shape=s.id;MK[r.id]=m}
     if(m._shape!==r.shape){m.remove();delete MK[r.id];continue}
     m.setLngLat([ll[1],ll[0]]);m.setRotation(rot);
-    const el=m.getElement(),Lpx=k.meters*pxPerM,small=Lpx<26;
+    const el=m.getElement(),Lpx=k.meters*pxPerM*TRAIN_SCALE,small=Lpx<26;
     if(el._small!==small){el._small=small;el.querySelector("svg").style.display=small?"none":"block";el.querySelector(".tdot").style.display=small?"block":"none"}
-    if(!small){const w=Lpx*(k.units+8)/k.units,h=w*20/(k.units+8)*1.7;el.style.width=w+"px";el.style.height=h+"px"}else{el.style.width="12px";el.style.height="12px"}
+    if(!small){const w=Lpx*(k.units+8)/k.units,h=w*20/(k.units+8)*1.45;el.style.width=w+"px";el.style.height=h+"px"}else{el.style.width="12px";el.style.height="12px"}
     let op=1;if(view==="home"&&NEAR){const rr=Math.hypot(c[0]-NEAR.ux,c[1]-NEAR.uy);const t=Math.min(1,Math.max(0,(NEAR.R-rr)/(NEAR.R*0.25)));op=t*t*(3-2*t)}
     if(el._op!==op){el._op=op;el.style.opacity=op}
   }
   requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
+
+
+/* ============ learn from your sightings ============ */
+const CAL=store.get("cal",{}); // key: route|dir -> {off: seconds (+ = later than timetable), n}
+const calKey=s=>s.route+"|"+s.dir;
+function calOffset(s){const c=CAL[calKey(s)];if(c&&c.n)return c.off;const all=Object.values(CAL).filter(c=>c.n);if(!all.length)return 0;return all.reduce((a,c)=>a+c.off*c.n,0)/all.reduce((a,c)=>a+c.n,0)}
+let lastUps=[];
+function markSeen(){const now=Date.now()/1000;let best=null;
+  for(const u of lastUps){const d=Math.abs(u.rawAt-now);if(d<300&&(!best||d<Math.abs(best.rawAt-now)))best=u}
+  if(!best){toast("No train was due in the last or next 5 minutes, so nothing to learn from.");return}
+  const s=SH[best.r.shape],k=calKey(s),err=now-best.rawAt,c=CAL[k]||{off:0,n:0};
+  c.off=c.n?Math.round((c.off*Math.min(c.n,4)+err)/(Math.min(c.n,4)+1)):Math.round(err);c.n++;CAL[k]=c;store.set("cal",CAL);
+  toast(lineName(s)+" to "+prettyHead(s)+" was "+Math.abs(Math.round(err))+"s "+(err<0?"early":"late")+". Future countdowns for this direction adjust by "+(c.off>0?"+":"")+c.off+"s.",6000);render()}
+$("bSeen").onclick=markSeen;
 
 /* ============ countdown ============ */
 const fmt=sec=>{sec=Math.max(0,Math.round(sec));const m=Math.floor(sec/60),s=sec%60;return m>=60?Math.floor(m/60)+"h "+(m%60)+"m":m+":"+String(s).padStart(2,"0")};
@@ -618,10 +638,12 @@ function render(){
   if(!S.pin){setCount("–:––","");setWho("Search your address","Open settings to begin");$("more").innerHTML="";$("age").textContent="";return}
   if(!Object.keys(WATCH).length){setCount("–:––","");setWho("No track in view","Widen your view in settings");$("more").innerHTML="";return}
   const ups=[];
-  if(S.mode==="sched"){for(const u of UPS){const rem=u.at-now;if(rem<-20)continue;const r=TRK[u.id];const started=r&&r.started;
-      ups.push({r:r||{id:u.id,shape:u.shape,ts:now,stopped:false},p:{at:u.at,dist:started?u.w.d-r.disp:null,w:u.w,startAt:u.t0,trip:u.trip},rem})}}
+  if(S.mode==="sched"){for(const u of UPS){const off=calOffset(SH[u.shape]),rawAt=u.at,at=u.at+off;const rem=at-now;if(rem<-20)continue;const r=TRK[u.id];const started=r&&r.started;
+      ups.push({r:r||{id:u.id,shape:u.shape,ts:now,stopped:false},p:{at,dist:started?u.w.d-r.disp:null,w:u.w,startAt:u.t0,trip:u.trip},rem,rawAt})}}
   else for(const r of Object.values(TRK)){const p=predict(r);if(!p||p.passed)continue;const rem=p.at-now;if(rem<-20)continue;ups.push({r,p,rem})}
-  ups.sort((a,b)=>a.rem-b.rem);
+  ups.sort((a,b)=>a.rem-b.rem);lastUps=ups.filter(x=>x.rawAt);
+  $("seenRow").style.display=S.mode==="sched"&&ups.some(x=>x.rawAt&&Math.abs(x.rem)<180)?"flex":"none";
+  {const n=Object.values(CAL).reduce((a,c)=>a+(c.n||0),0);$("calTxt").textContent=n?("Tuned from "+n+" sighting"+(n>1?"s":"")):"Tap when you see it to tune timing"}
   document.querySelectorAll(".pass.hot").forEach(e=>e.classList.remove("hot"));
   if(!ups.length){setCount("–:––","");setWho(S.mode==="live"&&!lastOK?"Waiting for DART…":"No trains scheduled soon",S.mode==="live"&&!lastOK?"":(S.mode==="sched"?"Nothing in the next 4 hours":"Check back in a few minutes"));$("more").innerHTML="";$("barFill").style.width="0";$("age").textContent="";return}
   const u=ups[0],s=SH[u.r.shape],col=colOf(s);
