@@ -26,7 +26,8 @@ html.dark{
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--ground);color:var(--ink);font:15px/1.35 Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
-#map{position:fixed;inset:0}
+#map{position:fixed;top:0;left:0;right:0;bottom:0;height:100vh;height:100lvh;width:100vw}
+html{height:100%;min-height:100lvh}
 .maplibregl-ctrl-attrib{background:transparent!important;font-size:9px;opacity:.55}
 .maplibregl-ctrl-attrib a{color:var(--mut)!important}
 .glass{background:var(--card);border:1px solid var(--cardLine);-webkit-backdrop-filter:blur(18px) saturate(1.1);backdrop-filter:blur(18px) saturate(1.1)}
@@ -864,7 +865,10 @@ export default {
 };`;
 $("wCode").value=WORKER;
 $("bCopyW").onclick=async()=>{try{await navigator.clipboard.writeText(WORKER);toast("Worker code copied")}catch(e){$("wCode").select();toast("Select the code and copy it")}};
-addEventListener("resize",()=>{if(view==="home")setTimeout(()=>goHome(false),150);placeRecenter()});
+new ResizeObserver(()=>map.resize()).observe(document.getElementById("map"));
+for(const t of[300,1000,2500])setTimeout(()=>map.resize(),t);
+addEventListener("orientationchange",()=>setTimeout(()=>map.resize(),300));
+addEventListener("resize",()=>{map.resize();if(view==="home")setTimeout(()=>goHome(false),150);placeRecenter()});
 
 /* ============ init ============ */
 $("fUrl").value=S.url;$("fKey").value=S.key;$("fKeyMode").value=S.keyMode;$("fProxy").value=S.proxy;$("fRef").value=S.ref;$("fov").value=S.fov;$("rng").value=S.rng;$("alertSec").value=S.alertSec;$("dv").textContent=DATA.version;
