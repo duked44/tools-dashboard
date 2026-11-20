@@ -246,10 +246,15 @@ ol.p{padding-left:18px}
   </div>
 
   <div class="sec">
+    <span class="eyebrow">Timing</span>
+    <div class="seg" id="calSeg"><button data-v="adj">With my adjustments</button><button data-v="exact">Exact timetable</button></div>
+    <div id="calList" style="margin-top:10px"></div>
+    <div class="row2" style="margin-top:6px"><button class="btn" id="bCalReset">Clear all adjustments</button></div>
+  </div>
+
+  <div class="sec">
     <span class="eyebrow">Alerts</span>
     <div class="row2"><button class="btn" id="bSound">Sound: off</button><button class="btn" id="bWake">Keep screen on</button></div>
-    <div class="row2" style="margin-top:10px"><button class="btn" id="bCalReset">Reset timing adjustments</button></div>
-    <p class="p" id="calList"></p>
     <label class="f">Alert this many seconds before <b id="alTxt"></b></label>
     <input type="range" id="alertSec" min="10" max="120" step="5">
   </div>
@@ -299,7 +304,7 @@ ol.p{padding-left:18px}
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="dart-data/rail.js"></script>
 <script src="dart-data/sched.js"></script>
-<script>const BUILD="20261120162908";</script>
+<script>const BUILD="20261120165142";</script>
 <script>const DATA = window.DART_RAIL; const SCHED = window.DART_SCHED || null;</script>
 <script>
 "use strict";
@@ -688,7 +693,8 @@ const CAL_MAX=90; // a correction bigger than this is a late/early train, not a 
 const CAL=store.get("cal",{}); // key: route|dir -> {off: seconds (+ = later than timetable), n}
 for(const k of Object.keys(CAL))if(!CAL[k]||!CAL[k].n||Math.abs(CAL[k].off)>CAL_MAX)delete CAL[k];store.set("cal",CAL);
 const calKey=s=>s.route+"|"+s.dir;
-function calOffset(s){const c=CAL[calKey(s)];return c&&c.n?c.off:0}
+let calExact=store.get("calExact",false);
+function calOffset(s){if(calExact)return 0;const c=CAL[calKey(s)];return c&&c.n?c.off:0}
 let lastUps=[];
 function markSeen(){const now=Date.now()/1000;let best=null;
   for(const u of lastUps){const d=Math.abs(u.rawAt-now);if(d<=CAL_MAX&&(!best||d<Math.abs(best.rawAt-now)))best=u}
@@ -698,8 +704,16 @@ function markSeen(){const now=Date.now()/1000;let best=null;
   c.off=c.n?Math.round((c.off*Math.min(c.n,4)+err)/(Math.min(c.n,4)+1)):Math.round(err);c.n++;CAL[k]=c;store.set("cal",CAL);
   showCal();toast(lineName(s)+" to "+prettyHead(s)+" was "+Math.abs(Math.round(err))+"s "+(err<0?"early":"late")+". Future countdowns for this direction adjust by "+(c.off>0?"+":"")+c.off+"s.",6000);render()}
 $("bSeen").onclick=markSeen;
-function showCal(){const e=Object.entries(CAL);$("calList").textContent=e.length?("Current adjustments: "+e.map(([k,c])=>{const[r,d]=k.split("|");const sh=DATA.shapes.find(x=>x.route===r&&String(x.dir)===d);return(sh?lineName(sh)+" to "+prettyHead(sh):k)+" "+(c.off>0?"+":"")+c.off+"s"}).join(", ")+"."):"No timing adjustments. Countdowns follow DART's timetable exactly."}
+function showCal(){document.querySelectorAll("#calSeg button").forEach(b=>b.classList.toggle("on",(b.dataset.v==="exact")===calExact));
+  const e=Object.entries(CAL);
+  const head=calExact?'<p class="p" style="margin:0 0 6px"><b style="color:var(--ink)">Using DART\'s exact timetable.</b> Your adjustments are saved but switched off.</p>':(e.length?'<p class="p" style="margin:0 0 6px"><b style="color:var(--ink)">Using your adjustments:</b></p>':'<p class="p" style="margin:0 0 6px">No adjustments yet. Countdowns follow DART\'s timetable exactly.</p>');
+  const rows=e.map(([k,c])=>{const[r,d]=k.split("|");const sh=DATA.shapes.filter(x=>x.route===r&&String(x.dir)===d).sort((p,q)=>q.ntrips-p.ntrips)[0];const right=sh&&WATCH[sh.id]?goesRight(sh,WATCH[sh.id]):null;
+    const what=c.off===0?"on time":Math.abs(c.off)+"s "+(c.off>0?"behind":"ahead of")+" timetable";
+    return`<div class="recRow" style="padding:8px 0;${calExact?"opacity:.45":""}"><span class="dot" style="background:${sh?colOf(sh):"#999"}"></span>${right==null?"":ARW(right)}<span class="n">${sh?lineName(sh)+" <span>to "+prettyHead(sh)+"</span>":k}</span><span class="t">${what}</span></div>`}).join("");
+  $("calList").innerHTML=head+rows+(e.length?'<p class="p" style="margin:6px 0 0">From '+e.reduce((a,[,c])=>a+c.n,0)+' of your sightings.</p>':"")}
+document.querySelectorAll("#calSeg button").forEach(b=>b.onclick=()=>{calExact=b.dataset.v==="exact";store.set("calExact",calExact);showCal();render();toast(calExact?"Now using DART's exact timetable.":"Now using your timing adjustments.")});
 $("bCalReset").onclick=()=>{for(const k of Object.keys(CAL))delete CAL[k];store.set("cal",CAL);showCal();render();toast("Timing adjustments cleared.")};
+$("bSet").addEventListener("click",showCal);
 showCal();
 
 
