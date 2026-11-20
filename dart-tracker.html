@@ -243,6 +243,8 @@ ol.p{padding-left:18px}
   <div class="sec">
     <span class="eyebrow">Alerts</span>
     <div class="row2"><button class="btn" id="bSound">Sound: off</button><button class="btn" id="bWake">Keep screen on</button></div>
+    <div class="row2" style="margin-top:10px"><button class="btn" id="bCalReset">Reset timing adjustments</button></div>
+    <p class="p" id="calList"></p>
     <label class="f">Alert this many seconds before <b id="alTxt"></b></label>
     <input type="range" id="alertSec" min="10" max="120" step="5">
   </div>
@@ -558,7 +560,7 @@ function predict(rec){const s=SH[rec.shape],w=WATCH[rec.shape];if(!s||!w)return 
 
 
 /* ============ schedule engine (DART's published timetable) ============ */
-const PA=0.3,PK=1/(2*PA*(1-PA));
+const PA=0.22,PK=1/(2*PA*(1-PA));
 const ez=u=>u<=0?0:u>=1?1:u<PA?u*u*PK:u<1-PA?(u-PA/2)/(1-PA):1-(1-u)*(1-u)*PK; // accelerate, cruise, brake
 function ezInv(f){let lo=0,hi=1;for(let i=0;i<28;i++){const m=(lo+hi)/2;if(ez(m)<f)lo=m;else hi=m}return(lo+hi)/2}
 function tripPos(t,e){const ds=t[3],A=t[4],D=t[5],n=ds.length;
@@ -662,18 +664,23 @@ requestAnimationFrame(frame);
 
 
 /* ============ learn from your sightings ============ */
+const CAL_MAX=90; // a correction bigger than this is a late/early train, not a steady offset
 const CAL=store.get("cal",{}); // key: route|dir -> {off: seconds (+ = later than timetable), n}
+for(const k of Object.keys(CAL))if(!CAL[k]||!CAL[k].n||Math.abs(CAL[k].off)>CAL_MAX)delete CAL[k];store.set("cal",CAL);
 const calKey=s=>s.route+"|"+s.dir;
-function calOffset(s){const c=CAL[calKey(s)];if(c&&c.n)return c.off;const all=Object.values(CAL).filter(c=>c.n);if(!all.length)return 0;return all.reduce((a,c)=>a+c.off*c.n,0)/all.reduce((a,c)=>a+c.n,0)}
+function calOffset(s){const c=CAL[calKey(s)];return c&&c.n?c.off:0}
 let lastUps=[];
 function markSeen(){const now=Date.now()/1000;let best=null;
-  for(const u of lastUps){const d=Math.abs(u.rawAt-now);if(d<300&&(!best||d<Math.abs(best.rawAt-now)))best=u}
-  if(!best){toast("No train was due in the last or next 5 minutes, so nothing to learn from.");return}
+  for(const u of lastUps){const d=Math.abs(u.rawAt-now);if(d<=CAL_MAX&&(!best||d<Math.abs(best.rawAt-now)))best=u}
+  if(!best){toast("No train was due within 90 seconds, so this one looks late or off-schedule. Nothing was changed.",6000);return}
   const s=SH[best.r.shape],k=calKey(s),err=now-best.rawAt,c=CAL[k]||{off:0,n:0};
   SEEN[best.r.id]=1;store.set("seen",SEEN);
   c.off=c.n?Math.round((c.off*Math.min(c.n,4)+err)/(Math.min(c.n,4)+1)):Math.round(err);c.n++;CAL[k]=c;store.set("cal",CAL);
-  toast(lineName(s)+" to "+prettyHead(s)+" was "+Math.abs(Math.round(err))+"s "+(err<0?"early":"late")+". Future countdowns for this direction adjust by "+(c.off>0?"+":"")+c.off+"s.",6000);render()}
+  showCal();toast(lineName(s)+" to "+prettyHead(s)+" was "+Math.abs(Math.round(err))+"s "+(err<0?"early":"late")+". Future countdowns for this direction adjust by "+(c.off>0?"+":"")+c.off+"s.",6000);render()}
 $("bSeen").onclick=markSeen;
+function showCal(){const e=Object.entries(CAL);$("calList").textContent=e.length?("Current adjustments: "+e.map(([k,c])=>{const[r,d]=k.split("|");const sh=DATA.shapes.find(x=>x.route===r&&String(x.dir)===d);return(sh?lineName(sh)+" to "+prettyHead(sh):k)+" "+(c.off>0?"+":"")+c.off+"s"}).join(", ")+"."):"No timing adjustments. Countdowns follow DART's timetable exactly."}
+$("bCalReset").onclick=()=>{for(const k of Object.keys(CAL))delete CAL[k];store.set("cal",CAL);showCal();render();toast("Timing adjustments cleared.")};
+showCal();
 
 
 /* ============ today's records ============ */
