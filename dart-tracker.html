@@ -112,6 +112,19 @@ body.aim #dirArrow{display:none!important}
 .stpop .maplibregl-popup-content{background:var(--card);color:var(--ink);border:1px solid var(--cardLine);border-radius:14px;padding:9px 13px;font:14px Inter,system-ui,sans-serif;box-shadow:0 8px 24px -10px var(--cardShadow);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
 .stpop .maplibregl-popup-content span{font-size:12px;color:var(--mut)}
 .stpop .maplibregl-popup-tip{display:none}
+.sw{position:relative;overflow:hidden;border-top:1px solid var(--cardLine);touch-action:pan-y}
+.sw .recRow{border-top:0;position:relative;background:var(--panel);transition:transform .25s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.sw.drag .recRow{transition:none}
+.swAct{position:absolute;inset:0;background:#3E9B5B;color:#fff;display:flex;align-items:center;gap:8px;padding-left:16px;font:600 14px Inter,system-ui,sans-serif;border:0;width:100%;text-align:left;cursor:pointer}
+.swAct svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:1.8}
+.recHead{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-weight:500;margin:14px 0 4px}
+.recRow .sub{display:block;font-size:12px;color:var(--mut);margin-top:2px}
+.recRow .t small{display:block;font-size:11px;color:var(--mut);font-weight:400;text-align:right}
+.dayRow{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--cardLine);font-size:15px;cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;color:var(--ink);text-align:left;font-family:inherit}
+.dayRow .d{flex:1}.dayRow .c{display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums;font-size:14px}
+.dayRow .c svg{width:22px;height:9px}.dayRow .tot{font-weight:600;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+.dayTrains{padding:0 0 6px 6px}
+:root{--panel:#F8F7F3}html.dark{--panel:#1B1B19}
 /* recenter pill */
 #recenter{position:fixed;left:16px;z-index:5;display:none;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
 /* sheet */
@@ -210,9 +223,11 @@ ol.p{padding-left:18px}
 <div id="scrim"></div>
 <div id="rec" class="glass" role="dialog" aria-label="Today's trains">
   <div id="grab2" style="width:38px;height:5px;border-radius:3px;background:var(--cardLine);margin:2px auto 8px"></div>
-  <h2 style="font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:30px;margin:4px 0 2px;display:flex;justify-content:space-between;align-items:center">Today <button class="ib" id="bRecClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <h2 style="font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:30px;margin:4px 0 8px;display:flex;justify-content:space-between;align-items:center"><span id="recTitle">Today</span> <button class="ib" id="bRecClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <div class="seg" id="recSeg" style="margin-bottom:10px"><button data-v="today" class="on">Today</button><button data-v="hist">History</button></div>
   <p class="p" id="recSub" style="margin-top:0"></p>
   <div id="recTiles"></div>
+  <div id="recTotal" class="p" style="margin:-4px 0 10px;text-align:center"></div>
   <div id="recList"></div>
 </div>
 <div id="sheet" class="glass" role="dialog" aria-label="Settings">
@@ -304,7 +319,7 @@ ol.p{padding-left:18px}
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="dart-data/rail.js"></script>
 <script src="dart-data/sched.js"></script>
-<script>const BUILD="20261120165900";</script>
+<script>const BUILD="20261123074143";</script>
 <script>const DATA = window.DART_RAIL; const SCHED = window.DART_SCHED || null;</script>
 <script>
 "use strict";
@@ -701,7 +716,7 @@ function markSeen(){const now=Date.now()/1000;let best=null;
   for(const u of lastUps){const d=Math.abs(u.rawAt-now);if(d<=CAL_MAX&&(!best||d<Math.abs(best.rawAt-now)))best=u}
   if(!best){toast("No train was due within 90 seconds, so this one looks late or off-schedule. Nothing was changed.",6000);return}
   const s=SH[best.r.shape],k=calKey(s),err=now-best.rawAt,c=CAL[k]||{off:0,n:0};
-  SEEN[best.r.id]=1;store.set("seen",SEEN);
+  SEEN[best.r.id]=Math.round(now);store.set("seen",SEEN);
   c.off=c.n?Math.round((c.off*Math.min(c.n,4)+err)/(Math.min(c.n,4)+1)):Math.round(err);c.n++;CAL[k]=c;store.set("cal",CAL);
   showCal();toast(lineName(s)+" to "+prettyHead(s)+" was "+Math.abs(Math.round(err))+"s "+(err<0?"early":"late")+". Future countdowns for this direction adjust by "+(c.off>0?"+":"")+c.off+"s.",6000);render()}
 $("bSeen").onclick=markSeen;
@@ -718,25 +733,85 @@ $("bSet").addEventListener("click",showCal);
 showCal();
 
 
-/* ============ today's records ============ */
+/* ============ today's records + history ============ */
 const ARW=(right)=>`<svg viewBox="0 0 46 12" aria-hidden="true"><path d="${right?"M2 6H43M36 1.5L43.5 6L36 10.5":"M44 6H3M10 1.5L2.5 6L10 10.5"}" fill="none" stroke="${right?"#D63B2F":"#2563C9"}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const SEEN=store.get("seen",{});
+const SEEN=store.get("seen",{});            // trip id -> time you marked it passing (epoch sec)
+const HIST=store.get("hist",{});            // ymd -> {r,l,t:[[shapeId, at, right, seenAt]]} for finished days
+const HIST_START=20261120;                  // the day this app was made
 function goesRight(s,w){const tg=tangentAt(s,w.d),rel=((tg-(S.hdg||0))%360+360)%360;return Math.sin(rel/R2D)>=0}
-function todayPasses(){if(!SCHED||!S.pin)return[];const c=chicagoNow(),y=prevDay(c.ymd,c.wd),now=Date.now()/1000,out=[];
-  for(const day of[{ymd:c.ymd,mid:c.mid,list:tripsFor(c.ymd,c.wd)},{ymd:y.ymd,mid:c.mid-86400,list:tripsFor(y.ymd,y.wd)}])
-    for(const i of day.list){const t=SCHED.trips[i],s=SH[t[0]],w=WATCH[t[0]];if(!s||!w)continue;const tt=tripTimeAt(t,w.d);if(tt==null)continue;
-      const at=day.mid+t[2]+tt+calOffset(s);if(at<c.mid||at>now)continue;out.push({id:day.ymd+"|"+i,s,at,right:goesRight(s,w)})}
+const ymdAdd=(ymd,n)=>{const d=new Date(Date.UTC(Math.floor(ymd/10000),Math.floor(ymd/100)%100-1,ymd%100+n));return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate()};
+const ymdWd=ymd=>(new Date(Date.UTC(Math.floor(ymd/10000),Math.floor(ymd/100)%100-1,ymd%100)).getUTCDay()+6)%7;
+function chiMid(ymd){let t=Date.UTC(Math.floor(ymd/10000),Math.floor(ymd/100)%100-1,ymd%100,6)/1000;const p={};for(const x of CHI.formatToParts(new Date(t*1000)))p[x.type]=x.value;return t-((+p.hour%24)*3600+(+p.minute)*60)}
+function tripList(ymd){const svc=activeServices(ymd,ymdWd(ymd));const L=[];SCHED.trips.forEach((t,i)=>{if(svc.has(t[1])&&SH[t[0]])L.push(i)});return L}
+const clock=t=>new Date(t*1000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"});
+const dur=sec=>{sec=Math.round(Math.abs(sec));return sec<60?sec+" s":Math.round(sec/60)+" min"};
+// every train scheduled past your window on service date ymd (midnight to midnight, Dallas time)
+function passesFor(ymd,withCal){if(!SCHED||!S.pin)return[];const m0=chiMid(ymd),m1=chiMid(ymdAdd(ymd,1)),out=[];
+  for(const day of[ymd,ymdAdd(ymd,-1)]){const dm=chiMid(day);const L=(day===chicagoNow().ymd||day===ymdAdd(chicagoNow().ymd,-1))?tripsFor(day,ymdWd(day)):tripList(day);
+    for(const i of L){const t=SCHED.trips[i],s=SH[t[0]],w=WATCH[t[0]];if(!s||!w)continue;const tt=tripTimeAt(t,w.d);if(tt==null)continue;
+      const raw=dm+t[2]+tt,at=raw+(withCal?calOffset(s):0);if(at<m0||at>=m1)continue;const id=day+"|"+i;out.push({id,s,at,rawAt:raw,right:goesRight(s,w),seen:SEEN[id]>1?SEEN[id]:(SEEN[id]?at:0)})}}
   return out.sort((a,b)=>b.at-a.at)}
-function renderRec(){const L=todayPasses(),r=L.filter(x=>x.right).length,l=L.length-r;
-  const clock=t=>new Date(t*1000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"});
-  $("recSub").textContent=S.mode==="sched"?"Trains that passed your window since midnight, from DART's timetable"+(Object.keys(CAL).length?" with your timing adjustments":"")+".":"Based on DART's timetable.";
-  $("recTiles").innerHTML=`<div class="tile"><div><div class="num">${r}</div><div class="lab">going right</div></div>${ARW(true)}</div><div class="tile"><div><div class="num">${l}</div><div class="lab">going left</div></div>${ARW(false)}</div>`;
-  $("recList").innerHTML=L.length?L.map(x=>`<div class="recRow"><span class="dot" style="background:${colOf(x.s)}"></span>${ARW(x.right)}<span class="n">${lineName(x.s)} <span>to ${prettyHead(x.s)}</span>${SEEN[x.id]?'<span class="seen">· you saw it</span>':""}</span><span class="t">${clock(x.at)}</span></div>`).join(""):'<p class="p">No trains have passed yet today.</p>'}
+// save finished days so history keeps them even after DART's timetable changes
+function snapshotHistory(){if(!SCHED||!S.pin||!Object.keys(WATCH).length)return;const today=chicagoNow().ymd;let changed=false;
+  for(let d=HIST_START;d<today;d=ymdAdd(d,1)){if(HIST[d])continue;const P=passesFor(d,true);if(!P.length&&!tripList(d).length)continue;
+    HIST[d]={r:P.filter(x=>x.right).length,l:P.filter(x=>!x.right).length,t:P.map(x=>[x.s.id,Math.round(x.at),x.right?1:0,Math.round(x.seen||0)])};changed=true}
+  if(changed)store.set("hist",HIST)}
+function rowHTML(x,swipe){const late=x.seen?x.seen-x.rawAt:null;
+  const sub=x.seen?`<span class="sub">You marked it ${clock(x.seen)}${Math.abs(late)>=20?" · "+dur(late)+(late>0?" late":" early"):" · on time"}</span>`:"";
+  const row=`<div class="recRow"><span class="dot" style="background:${colOf(x.s)}"></span>${ARW(x.right)}<span class="n">${lineName(x.s)} <span>to ${prettyHead(x.s)}</span>${sub}</span><span class="t">${clock(x.seen||x.at)}${x.seen&&Math.abs(late)>=20?`<small>sched ${clock(x.rawAt)}</small>`:""}</span></div>`;
+  return swipe?`<div class="sw" data-id="${x.id}"><button class="swAct" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Passing now</button>${row}</div>`:row}
+let recTab="today",recCache=[],openDay=null;
+function renderRec(){
+  document.querySelectorAll("#recSeg button").forEach(b=>b.classList.toggle("on",b.dataset.v===recTab));
+  const tiles=(r,l)=>`<div class="tile"><div><div class="num">${r}</div><div class="lab">going right</div></div>${ARW(true)}</div><div class="tile"><div><div class="num">${l}</div><div class="lab">going left</div></div>${ARW(false)}</div>`;
+  if(recTab==="today"){
+    const now=Date.now()/1000,all=passesFor(chicagoNow().ymd,true);recCache=all;
+    const passed=all.filter(x=>x.at<=now||x.seen),soon=all.filter(x=>x.at>now&&!x.seen&&x.at<now+40*60).sort((a,b)=>a.at-b.at);
+    const r=passed.filter(x=>x.right).length,l=passed.length-r;
+    $("recTitle").textContent="Today";
+    $("recSub").textContent="Swipe right on a train and tap Passing now, or swipe all the way, when it goes by. It records the real time, even if it's early or late.";
+    $("recTiles").innerHTML=tiles(r,l);$("recTotal").textContent=passed.length+" trains so far today";
+    $("recList").innerHTML=(soon.length?'<div class="recHead">Coming up</div>'+soon.map(x=>rowHTML(x,true)).join(""):"")+'<div class="recHead">Passed</div>'+(passed.length?passed.map(x=>rowHTML(x,true)).join(""):'<p class="p">No trains have passed yet today.</p>');
+    bindSwipes();
+  }else{
+    snapshotHistory();const today=chicagoNow().ymd;const tp=passesFor(today,true).filter(x=>x.at<=Date.now()/1000||x.seen);
+    const days=[{ymd:today,r:tp.filter(x=>x.right).length,l:tp.filter(x=>!x.right).length,live:true}];
+    for(let d=ymdAdd(today,-1);d>=HIST_START;d=ymdAdd(d,-1))days.push(HIST[d]?{ymd:d,r:HIST[d].r,l:HIST[d].l}:{ymd:d,none:true});
+    const R=days.reduce((a,d)=>a+(d.r||0),0),L=days.reduce((a,d)=>a+(d.l||0),0),n=days.filter(d=>!d.none).length;
+    $("recTitle").textContent="History";
+    $("recSub").textContent="Every train past your window since Nov 20, 2026, from DART's timetable plus the trains you marked.";
+    $("recTiles").innerHTML=tiles(R,L);$("recTotal").textContent=(R+L).toLocaleString()+" trains total over "+n+" day"+(n===1?"":"s");
+    const fmtD=ymd=>new Date(Date.UTC(Math.floor(ymd/10000),Math.floor(ymd/100)%100-1,ymd%100,12)).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric",timeZone:"UTC"});
+    $("recList").innerHTML=days.map(d=>`<button class="dayRow" data-ymd="${d.ymd}"><span class="d">${d.live?"Today":fmtD(d.ymd)}</span>${d.none?'<span class="c" style="color:var(--mut)">no timetable data</span>':`<span class="c">${ARW(true)}${d.r}</span><span class="c">${ARW(false)}${d.l}</span><span class="tot">${d.r+d.l}</span>`}</button>`+(openDay===d.ymd&&!d.none?`<div class="dayTrains">${dayTrains(d)}</div>`:"")).join("");
+    document.querySelectorAll(".dayRow").forEach(b=>b.onclick=()=>{const y=+b.dataset.ymd;openDay=openDay===y?null:y;renderRec()});
+  }}
+function dayTrains(d){let L;if(d.live)L=passesFor(d.ymd,true).filter(x=>x.at<=Date.now()/1000||x.seen);
+  else L=(HIST[d.ymd].t||[]).map(([sid,at,r,seen])=>({s:SH[sid]||{route:"",color:"#999",head:"",dir:""},at,rawAt:at,right:!!r,seen}));
+  return L.map(x=>x.s.prof?rowHTML(x,false):"").join("")||'<p class="p">No trains.</p>'}
+function markTrain(id){const x=recCache.find(q=>q.id===id);if(!x)return;const now=Date.now()/1000;SEEN[id]=Math.round(now);store.set("seen",SEEN);
+  const err=now-x.rawAt;let note="";
+  if(Math.abs(err)<=CAL_MAX){const k=calKey(x.s),c=CAL[k]||{off:0,n:0};c.off=c.n?Math.round((c.off*Math.min(c.n,4)+err)/(Math.min(c.n,4)+1)):Math.round(err);c.n++;CAL[k]=c;store.set("cal",CAL);showCal();note=" Timing for this line updated."}
+  else note=" Too far off to change future timing.";
+  toast(lineName(x.s)+" to "+prettyHead(x.s)+": "+(Math.abs(err)<20?"on time.":dur(err)+(err>0?" late.":" early."))+note,5000);renderRec();render()}
+function bindSwipes(){document.querySelectorAll("#recList .sw").forEach(sw=>{const front=sw.querySelector(".recRow"),act=sw.querySelector(".swAct");let x0=0,y0=0,dx=0,mode=null,open=false;
+  const set=v=>{front.style.transform=v?`translateX(${v}px)`:""};
+  const closeOthers=()=>document.querySelectorAll("#recList .sw").forEach(o=>{if(o!==sw){o.querySelector(".recRow").style.transform="";o._open=false}});
+  sw.addEventListener("pointerdown",e=>{x0=e.clientX;y0=e.clientY;dx=0;mode=null;open=!!sw._open});
+  sw.addEventListener("pointermove",e=>{if(mode==="no")return;const mx=e.clientX-x0,my=e.clientY-y0;
+    if(!mode){if(Math.abs(mx)<8&&Math.abs(my)<8)return;mode=Math.abs(mx)>Math.abs(my)?"h":"no";if(mode==="h"){sw.classList.add("drag");closeOthers();try{sw.setPointerCapture(e.pointerId)}catch(_){}}}
+    if(mode!=="h")return;dx=Math.max(0,(open?130:0)+mx);set(dx)});
+  const end=()=>{sw.classList.remove("drag");if(mode!=="h"){mode=null;return}mode=null;const w=sw.offsetWidth;
+    if(dx>w*0.62){set(w);sw._open=false;setTimeout(()=>markTrain(sw.dataset.id),220)}
+    else if(dx>70){set(130);sw._open=true}else{set(0);sw._open=false}};
+  sw.addEventListener("pointerup",end);sw.addEventListener("pointercancel",end);
+  act.addEventListener("click",()=>{if(sw._open)markTrain(sw.dataset.id)});
+  front.addEventListener("click",()=>{if(sw._open){set(0);sw._open=false}})})}
 let recT=null;
-function openRec(){closeSheet();renderRec();$("rec").classList.add("open");$("scrim").style.display="block";clearInterval(recT);recT=setInterval(renderRec,15000)}
+function openRec(){closeSheet();snapshotHistory();renderRec();$("rec").classList.add("open");$("scrim").style.display="block";clearInterval(recT);recT=setInterval(()=>{if(!document.querySelector("#recList .sw.drag")&&!document.querySelector('#recList .sw .recRow[style*="translate"]'))renderRec()},15000)}
 function closeRec(){$("rec").classList.remove("open");clearInterval(recT);if(!$("sheet").classList.contains("open"))$("scrim").style.display="none"}
 $("bRec").onclick=openRec;$("bRecClose").onclick=closeRec;
-
+document.querySelectorAll("#recSeg button").forEach(b=>b.onclick=()=>{recTab=b.dataset.v;openDay=null;renderRec()});
+setTimeout(snapshotHistory,4000);
 /* ============ countdown ============ */
 const fmt=sec=>{sec=Math.max(0,Math.round(sec));const m=Math.floor(sec/60),s=sec%60;return m>=60?Math.floor(m/60)+"h "+(m%60)+"m":m+":"+String(s).padStart(2,"0")};
 const mi=m=>m<160?Math.round(m*3.281)+" ft":(m/1609.34).toFixed(1)+" mi";
